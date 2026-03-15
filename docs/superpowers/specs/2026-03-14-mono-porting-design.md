@@ -33,7 +33,7 @@ Multi-target the existing `Genie4.csproj` using `<TargetFrameworks>net6.0-window
 `using Accessibility;` on line 14 references a COM interop assembly that may not be available on all Mono installations. Confirmed: the `Accessibility.` namespace is not used anywhere in the file. Remove this `using` directive entirely.
 
 ### `Utility/Sound.cs`
-Wrap in `#if WINDOWS`: all three `DllImport` declarations for `winmm.dll` AND all four method bodies (`PlayWaveFile`, `PlayWaveResource`, `PlayWaveSystem`, `StopPlaying`). The `using Microsoft.VisualBasic.CompilerServices;` directive can remain — `CompilerServices` is a framework assembly on net48 and the unused import is harmless. Non-Windows stubs are empty no-ops (void return, nothing else).
+Wrap in `#if WINDOWS`: both `DllImport` declarations for `winmm.dll` (two overloads of `PlaySound`) AND all four method bodies (`PlayWaveFile`, `PlayWaveResource`, `PlayWaveSystem`, `StopPlaying`). The `using Microsoft.VisualBasic.CompilerServices;` directive can remain — `CompilerServices` is a framework assembly on net48 and the unused import is harmless. Non-Windows stubs are empty no-ops (void return, nothing else).
 
 ### `Utility/Win32Utility.cs`
 
