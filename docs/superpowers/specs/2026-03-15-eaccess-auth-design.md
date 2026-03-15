@@ -49,7 +49,7 @@ Auth errors (bad password, no account, no such character) flow through `EventPri
 
 ## Core/Game.cs — EventDisconnected
 
-Add alongside the other public events (around line 90):
+Add after the last public event declaration (after `EventStreamWindow` at line 90):
 
 ```csharp
 public event Action? EventDisconnected;
@@ -64,6 +64,8 @@ EventDisconnected?.Invoke();
 This fires for every socket disconnect regardless of `ConnectStates` — including EACCESS auth failures (which disconnect in `ConnectedKey` state, not `ConnectedGame`). The existing `$connected` variable change logic is preserved unchanged beneath it.
 
 ## Desktop/MainWindow.axaml.cs — ConnectButton_Click
+
+Add `using System.Threading.Tasks;` to the top of the file (alongside the existing `using` directives).
 
 Replace the current placeholder implementation with:
 
@@ -85,13 +87,33 @@ private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEv
         return;
     }
 
+    // Disable before dispatching — ensures the button is disabled before OnDisconnected
+    // could possibly fire (prevents a re-enable/disable race on immediate failure).
     ConnectButton.IsEnabled = false;
     AppendOutput($"[Connecting as {character}...]");
-    _game.Connect(string.Empty, account, password, character, "DR");
+    _ = Task.Run(() =>
+    {
+        try
+        {
+            _game.Connect(string.Empty, account, password, character, "DR");
+        }
+        catch (Exception ex)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                AppendOutput($"[Connect error: {ex.Message}]");
+                ConnectButton.IsEnabled = true;
+            });
+        }
+    });
 }
 ```
 
-`sGenieKey` is passed as `string.Empty` — the EACCESS protocol performs a fresh login when the key is absent.
+`sGenieKey` is passed as `string.Empty` — `Game.Connect()` ignores this parameter entirely and always calls `DoConnect`; passing empty string is conventional.
+
+`Game.Connect()` → `DoConnect()` → `Connection.ConnectAndAuthenticate()` is synchronous (blocking TLS I/O). Calling it directly on the UI thread would freeze the window during the EACCESS handshake (which takes a network round-trip). `Task.Run` dispatches it to the thread pool, keeping the UI responsive. The `try/catch` ensures that any exception thrown before `EventDisconnected` fires (e.g., `SocketException` on DNS failure) is shown in the output area and re-enables the button rather than leaving it permanently disabled.
+
+`EventPrintText` / `EventPrintError` already marshal output via `Dispatcher.UIThread.Post` in `OnPrintText`; the `OnDisconnected` handler specified below uses `Dispatcher.UIThread.Post` for the same reason, so no additional synchronization is needed for the normal auth flow.
 
 ## Desktop/MainWindow.axaml.cs — Constructor and Disconnect Handler
 
