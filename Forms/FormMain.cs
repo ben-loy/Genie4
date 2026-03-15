@@ -7795,7 +7795,9 @@ namespace GenieClient
 
         private void FlashWindow()
         {
+#if WINDOWS
             NativeMethods.FlashWindow(Handle, true);
+#endif
         }
 
         private void ShowWindowToolStripMenuItem_Click(object sender, EventArgs e)
