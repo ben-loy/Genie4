@@ -206,7 +206,7 @@
     <EmbeddedResource Include="Resources\skin_topright.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="Plugin\Plugins.vbproj" Condition="'$(TargetFramework)' == 'net6.0-windows'" />
+    <ProjectReference Include="Plugin\Plugins.vbproj" Condition="'$(TargetFramework)' == 'net6.0-windows' AND '$(OS)' == 'Windows_NT'" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Libs\Antlr3.Runtime.dll" />
