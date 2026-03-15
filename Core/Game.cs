@@ -597,6 +597,7 @@ namespace GenieClient.Genie
                                 if (buffer.EndsWith("</preset>"))
                                 {
                                     XmlDocument presetXML = new XmlDocument();
+                                    presetXML.XmlResolver = null;
                                     presetXML.LoadXml(buffer);
 
                                     string presetLabel = GetAttributeData(presetXML.FirstChild, "id").ToLower();
@@ -876,6 +877,7 @@ namespace GenieClient.Genie
             }
 
             var oDocument = new XmlDocument();
+            oDocument.XmlResolver = null;
             try
             {
                 oDocument.LoadXml("<data>" + sXML + "</data>");
