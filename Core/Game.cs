@@ -3331,6 +3331,7 @@ namespace GenieClient.Genie
 
         private void GameSocket_EventConnectionLost()
         {
+            EventDisconnected?.Invoke();
             if (m_oGlobals.Config.bReconnect == true & m_bManualDisconnect == false)
             {
                 if (m_iConnectAttempts == 0) // Attempt to connect right away
