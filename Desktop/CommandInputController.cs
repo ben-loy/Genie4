@@ -219,6 +219,7 @@ internal sealed class CommandInputController
                 .Where(n => n != null && n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Cast<string>()
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .Select(n => _game.Globals.Config.ScriptChar + n)  // restore ScriptChar prefix
                 .ToList();
         }
 
@@ -227,11 +228,21 @@ internal sealed class CommandInputController
 
         // Guard 3: alias context
         var matches = new List<string>();
-        foreach (object key in _game.Globals.AliasList.Keys)
+        if (_game.Globals.AliasList.AcquireReaderLock())
         {
-            string k = (string)key;
-            if (k.StartsWith(text, StringComparison.OrdinalIgnoreCase))
-                matches.Add(k);
+            try
+            {
+                foreach (object key in _game.Globals.AliasList.Keys)
+                {
+                    string k = (string)key;
+                    if (k.StartsWith(text, StringComparison.OrdinalIgnoreCase))
+                        matches.Add(k);
+                }
+            }
+            finally
+            {
+                _game.Globals.AliasList.ReleaseReaderLock();
+            }
         }
         matches.Sort(StringComparer.OrdinalIgnoreCase);
         return matches;
