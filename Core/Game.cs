@@ -91,6 +91,8 @@ namespace GenieClient.Genie
 
         public delegate void EventStreamWindowEventHandler(object sID, object sTitle, object sIfClosed);
 
+        public event Action? EventDisconnected;
+
         private Connection _m_oSocket;
 
         private Connection m_oSocket
@@ -3207,6 +3209,7 @@ namespace GenieClient.Genie
 
         private void GameSocket_EventDisconnected()
         {
+            EventDisconnected?.Invoke();
             if (m_oConnectState == ConnectStates.ConnectedGame)
             {
                 string argkey = "connected";
