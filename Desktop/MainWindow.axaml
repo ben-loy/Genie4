@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GenieClient.Desktop.MainWindow"
+        Title="Genie"
+        Width="900" Height="600"
+        MinWidth="600" MinHeight="400">
+
+  <DockPanel>
+
+    <!-- Connect bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="6,6,6,0">
+      <TextBlock VerticalAlignment="Center" Text="Account:" />
+      <TextBox x:Name="AccountBox" Width="140" />
+      <TextBlock VerticalAlignment="Center" Text="Password:" />
+      <TextBox x:Name="PasswordBox" Width="140" PasswordChar="•" />
+      <TextBlock VerticalAlignment="Center" Text="Character:" />
+      <TextBox x:Name="CharacterBox" Width="120" />
+      <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+    </StackPanel>
+
+    <!-- Command input -->
+    <TextBox DockPanel.Dock="Bottom"
+             x:Name="CommandBox"
+             Margin="6,0,6,6"
+             KeyDown="CommandBox_KeyDown"
+             Watermark="Enter command..." />
+
+    <!-- Text output -->
+    <ScrollViewer x:Name="OutputScroll" Margin="6,6,6,0">
+      <SelectableTextBlock x:Name="OutputText"
+                           FontFamily="Courier New,Consolas,monospace"
+                           FontSize="13"
+                           TextWrapping="Wrap" />
+    </ScrollViewer>
+
+  </DockPanel>
+
+</Window>
