@@ -129,15 +129,15 @@ Any key that is not `Tab` resets: `_lastKeyWasTab = false`, `_tabPattern = strin
 
 Evaluate `CommandBox.Text` at the moment Tab is pressed using these three sequential checks:
 
-1. **Script context:** text starts with `_game.Globals.Config.ScriptChar` **and** does not end with a space.
-   - Extract prefix = text after `ScriptChar`.
-   - Search `_game.Globals.Config.ScriptDir` for files whose name (without extension) starts with the prefix (case-insensitive).
+1. **Script context:** `text.Length > 0 && text[0] == _game.Globals.Config.ScriptChar` **and** text does not end with a space.
+   - Extract prefix = text after `ScriptChar` (i.e., `text[1..]`).
+   - Search `_game.Globals.Config.ScriptDir` for files whose name (without extension) starts with the prefix (case-insensitive, `StringComparison.OrdinalIgnoreCase`).
    - `_tabMatches` = sorted list of matching filenames (without extension).
 
-2. **Trailing-space guard:** if text ends with a space, Tab does nothing (return immediately). This applies whether or not the text starts with `ScriptChar`.
+2. **Trailing-space guard:** if text ends with a space, Tab does nothing (return immediately). This catches both the non-script case and the edge case of a script path that ends with a space (which check 1 excluded, so it falls through here).
 
 3. **Alias context:** all remaining cases (text does not start with `ScriptChar` and does not end with a space).
-   - Iterate `_game.Globals.AliasList.Keys`, casting each entry to `string`. Collect those that start with the current text (case-insensitive, `StringComparison.OrdinalIgnoreCase`).
+   - Iterate `_game.Globals.AliasList.Keys`, casting each entry to `string`. Collect those where `key.StartsWith(text, StringComparison.OrdinalIgnoreCase)`.
    - `_tabMatches` = sorted list of matching alias keys.
 
 ### Tab key logic
@@ -157,7 +157,11 @@ On `Tab` press (`e.Handled = true` always):
 2. Get clipboard text via `await TopLevel.GetTopLevel(CommandBox)!.Clipboard!.GetTextAsync()`. If null or empty, return.
 3. If text length > 100: show `await MessageBoxManager` (or a simple Avalonia dialog) asking "Paste [N] characters?" — cancel if user declines.
 4. Strip all `'\r'` and `'\n'` from text; trim trailing whitespace.
-5. Insert at caret: remove `CommandBox.SelectedText` if any, then insert cleaned text at `CommandBox.CaretIndex`.
+5. Insert at caret:
+   - Read `int start = CommandBox.SelectionStart`, `int end = CommandBox.SelectionEnd`. If `start != end` (text is selected), remove the selected range first.
+   - Build the new text: `CommandBox.Text = CommandBox.Text[..start] + cleanedText + CommandBox.Text[end..]`.
+   - Set `CommandBox.CaretIndex = start + cleanedText.Length`.
+   - (`SelectedText` is read-only in Avalonia 11; text must be spliced via `Text` assignment.)
 
 **Note:** Avalonia's clipboard API is async. `HandleKeyDown` will be declared `async void` to support this.
 
