@@ -4,38 +4,39 @@ Genie supports a `net48` build target that runs on Mac and Linux via the [Mono r
 
 ## Prerequisites
 
-**macOS:**
+**Build (all platforms):** The standard [.NET SDK](https://dotnet.microsoft.com/download) (6 or later) is sufficient to compile the `net48` target — no separate Mono build tools required.
+
+**Runtime — macOS:**
+
+Install Mono from [mono-project.com](https://www.mono-project.com/download/stable/) (the Homebrew `mono` formula is too old to run this application):
+
 ```bash
-brew install mono
+# Download and run the .pkg installer from mono-project.com
 ```
 
-**Linux (Debian/Ubuntu):**
+**Runtime — Linux (Debian/Ubuntu):**
 ```bash
 sudo apt install mono-complete
 ```
 
 ## Build
 
-Mono ships its own `msbuild` which includes the .NET Framework 4.8 reference assemblies.
-The `dotnet` CLI cannot build `net48` on Mac/Linux — use `msbuild` from the Mono install.
-
 ```bash
-msbuild Genie4.csproj /p:TargetFramework=net48
+dotnet build Genie4.csproj -f net48
 ```
 
-If `msbuild` is not on your PATH after installing Mono from mono-project.com:
-```bash
-/Library/Frameworks/Mono.framework/Versions/Current/bin/msbuild Genie4.csproj /p:TargetFramework=net48
-```
-
-> **Note:** The Homebrew `mono` formula (6.14) ships `xbuild` which is too old for SDK-style
-> projects. Install Mono from [mono-project.com](https://www.mono-project.com/download/stable/)
-> to get a working `msbuild`.
+`EnableWindowsTargeting` is set automatically for the `net48` configuration in the project file.
 
 ## Run
 
 ```bash
 mono bin/Debug/net48/Genie.exe
+```
+
+On macOS, if `mono` is not on your PATH after installing from mono-project.com:
+
+```bash
+/Library/Frameworks/Mono.framework/Versions/Current/bin/mono bin/Debug/net48/Genie.exe
 ```
 
 ## Known Limitations

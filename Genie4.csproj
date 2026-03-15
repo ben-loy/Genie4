@@ -63,6 +63,9 @@
     <EmbeddedResource Remove="Plugin\**" />
     <None Remove="Plugin\**" />
   </ItemGroup>
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Compile Remove="Utility\EnumWindows.cs" />
     <Reference Include="Microsoft.VisualBasic" />
