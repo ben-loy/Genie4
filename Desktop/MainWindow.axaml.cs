@@ -14,6 +14,7 @@ namespace GenieClient.Desktop;
 public partial class MainWindow : Window
 {
     private readonly Game _game;
+    private readonly CommandInputController _controller;
 
     public MainWindow(Game game)
     {
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
         _game.EventPrintText += OnPrintText;
         _game.EventDisconnected += OnDisconnected;
         _game.EventPrintError += OnPrintError;
+        _controller = new CommandInputController(_game, CommandBox, OutputScroll);
     }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -60,18 +62,7 @@ public partial class MainWindow : Window
     }
 
     private void CommandBox_KeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            var text = CommandBox.Text ?? string.Empty;
-            if (!string.IsNullOrEmpty(text))
-            {
-                _game.SendText(text, bUserInput: true);
-                CommandBox.Text = string.Empty;
-            }
-            e.Handled = true;
-        }
-    }
+        => _controller.HandleKeyDown(e);
 
     private void OnPrintText(string text, Color color, Color bgcolor,
                              Game.WindowTarget targetwindow, string targetwindowstring,

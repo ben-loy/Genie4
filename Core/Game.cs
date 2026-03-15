@@ -161,6 +161,8 @@ namespace GenieClient.Genie
             }
         }
 
+        public Globals Globals => m_oGlobals;
+
         private bool m_bShowRawOutput = false;
         private string m_sEncryptionKey = string.Empty;
         private string m_sAccountOwner = string.Empty;
