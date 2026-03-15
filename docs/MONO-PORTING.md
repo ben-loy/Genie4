@@ -16,8 +16,16 @@ sudo apt install mono-complete
 
 ## Build
 
+Mono ships its own `msbuild` which includes the .NET Framework 4.8 reference assemblies.
+The `dotnet` CLI cannot build `net48` on Mac/Linux — use `msbuild` from the Mono install.
+
 ```bash
 msbuild Genie4.csproj /p:TargetFramework=net48
+```
+
+If `msbuild` is not on your PATH after installing Mono:
+```bash
+/Library/Frameworks/Mono.framework/Versions/Current/bin/msbuild Genie4.csproj /p:TargetFramework=net48
 ```
 
 ## Run
