@@ -64,7 +64,11 @@ namespace GenieClient.Genie
         public bool AutoUpdate { get; set; } = false;
         public bool AutoUpdateLamp { get; set; } = true;
 
+#if !DESKTOP
         public string sConnectString = "FE:GENIE /VERSION:" + My.MyProject.Application.Info.Version.ToString() + " /P:WIN_XP /XML";
+#else
+        public string sConnectString = "FE:GENIE /VERSION:" + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0") + " /P:WIN_XP /XML";
+#endif
         public int[] iPickerColors = new int[17];
         public string RubyPath { get; set; } = @"C:\ruby4lich5\bin\ruby.exe";
         public string CmdPath { get; set; } = @"C:\Windows\System32\cmd.exe";

@@ -3381,7 +3381,11 @@ namespace GenieClient.Genie
                     {
                         if (bUsePattern == false | de.Value.ToString().Contains(sPattern))
                         {
+#if !DESKTOP
                             EchoText(((Keys)Conversions.ToInteger(de.Key)).ToString() + "=" + ((Macros.Macro)de.Value).sAction + System.Environment.NewLine);
+#else
+                            EchoText(((GenieClient.Genie.KeyCode.Keys)Conversions.ToInteger(de.Key)).ToString() + "=" + ((Macros.Macro)de.Value).sAction + System.Environment.NewLine);
+#endif
                             I += 1;
                         }
                     }

@@ -11,6 +11,12 @@
     <DefineConstants>$(DefineConstants);DESKTOP</DefineConstants>
   </PropertyGroup>
 
+  <!-- Root-level shared files -->
+  <ItemGroup>
+    <Compile Include="../RegexOptions.cs" />
+    <Compile Include="../LocalDirectory.cs" />
+  </ItemGroup>
+
   <!-- Avalonia -->
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.12" />
@@ -22,7 +28,7 @@
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
   </ItemGroup>
 
