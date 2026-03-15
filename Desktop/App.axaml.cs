@@ -3,7 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using GenieClient.Genie;   // <-- use the actual namespace from Step 1
+using GenieClient.Genie;
 
 namespace GenieClient.Desktop;
 
@@ -28,7 +28,7 @@ public class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.ShutdownRequested += async (_, _) => await _host.StopAsync();
+            desktop.ShutdownRequested += async (_, _) => await _host!.StopAsync();
             await _host.StartAsync();
             desktop.MainWindow = _host.Services.GetRequiredService<MainWindow>();
         }
