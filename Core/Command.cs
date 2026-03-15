@@ -7,7 +7,6 @@ using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Windows.Forms;
 using Microsoft.VisualBasic;
 using Microsoft.VisualBasic.CompilerServices;
 // Imports Jint
