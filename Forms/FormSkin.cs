@@ -802,6 +802,7 @@ namespace GenieClient
             string LText = e.LinkText;
             if (!LText.StartsWith("http"))
             {
+#if WINDOWS
                 string Llink = srcText.Substring(e.LinkStart + e.LinkLength + 1, e.LinkLength);
                 if (Llink != LText)
                 {
@@ -812,6 +813,12 @@ namespace GenieClient
                 {
                     LText = "#" + e.LinkText;
                 }
+#else
+                if (!LText.StartsWith("http"))
+                {
+                    LText = "#" + e.LinkText;
+                }
+#endif
             }
             EventLinkClicked?.Invoke(LText, e);
         }

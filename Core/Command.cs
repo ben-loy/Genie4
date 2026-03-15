@@ -402,11 +402,11 @@ namespace GenieClient.Genie
                                                 else if (arg.StartsWith(">")) sOutputWindow = arg.Substring(1);
                                                 else if ((arg.Length > 2 && arg.StartsWith("w:") || (arg.Length > 6 && arg.StartsWith("width:"))))
                                                 {
-                                                    if (!int.TryParse(arg.Split(":")[1], out width)) EchoText($"Invalid Width Specified: {arg}");
+                                                    if (!int.TryParse(arg.Split(':')[1], out width)) EchoText($"Invalid Width Specified: {arg}");
                                                 }
                                                 else if ((arg.Length > 2 && arg.StartsWith("h:") || (arg.Length > 7 && arg.StartsWith("height:"))))
                                                 {
-                                                    if (!int.TryParse(arg.Split(":")[1], out height)) EchoText($"Invalid Height Specified: {arg}");
+                                                    if (!int.TryParse(arg.Split(':')[1], out height)) EchoText($"Invalid Height Specified: {arg}");
                                                 }
                                                 else filename = arg;
                                             }

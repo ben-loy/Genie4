@@ -460,7 +460,7 @@ namespace GenieClient
             {
                 try
                 {
-                    foreach (Globals.HighlightRegExp.Highlight oHighlight in m_oParentForm.Globals.HighlightRegExpList.Values)
+                    foreach (GenieClient.Genie.Globals.HighlightRegExp.Highlight oHighlight in m_oParentForm.Globals.HighlightRegExpList.Values)
                     {
                         if (oHighlight.IsActive) ParseRegExpHighlight(oHighlight);
                     }
@@ -476,7 +476,7 @@ namespace GenieClient
             }
         }
 
-        private void ParseRegExpHighlight(int StartIndex, string Line, Globals.HighlightRegExp.Highlight Highlight)
+        private void ParseRegExpHighlight(int StartIndex, string Line, GenieClient.Genie.Globals.HighlightRegExp.Highlight Highlight)
         {
             int iDiff = Line.Length - Line.TrimStart(Conversions.ToChar(Constants.vbCr)).Length; // RichText does not add both cr+lf
             foreach (Match oMatch in Highlight.HighlightRegex.Matches(Line))

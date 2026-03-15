@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>net6.0-windows;net48</TargetFrameworks>
     <OutputType>WinExe</OutputType>
+    <GenerateResourceUsePreserializedResources Condition="'$(TargetFramework)' == 'net48'">true</GenerateResourceUsePreserializedResources>
     <StartupObject>GenieClient.Program</StartupObject>
     <RootNamespace>GenieClient</RootNamespace>
     <AssemblyName>Genie</AssemblyName>
@@ -36,7 +37,7 @@
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <UseWindowsForms Condition="'$(TargetFramework)' == 'net6.0-windows'">true</UseWindowsForms>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImportWindowsDesktopTargets Condition="'$(TargetFramework)' == 'net6.0-windows'">true</ImportWindowsDesktopTargets>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
   </PropertyGroup>
@@ -64,6 +65,10 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Compile Remove="Utility\EnumWindows.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Antlr3.Runtime">
@@ -217,6 +222,7 @@
   <ItemGroup>
 	  <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
     <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" Condition="'$(TargetFramework)' == 'net6.0-windows'" />
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" Condition="'$(TargetFramework)' == 'net48'" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Remove="Forms\Components\ComponentIcons.resx" />

@@ -1197,7 +1197,7 @@ namespace GenieClient.Genie
                         }
                     case "E": //Indicates an Error Message
                         {
-                            string[] errorStrings = sText.Split("\t");
+                            string[] errorStrings = sText.Split('\t');
                             for(int i = 1;i < errorStrings.Length;i++)
                             {
                                 PrintError(errorStrings[i]);
@@ -3251,6 +3251,7 @@ namespace GenieClient.Genie
                         }
                     }
                 }
+#if WINDOWS
                 else if(oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     if ((oPlugin as GeniePlugin.Plugins.IPlugin).Enabled)
@@ -3268,6 +3269,7 @@ namespace GenieClient.Genie
                         }
                     }
                 }
+#endif
             }
 
             return sText;
