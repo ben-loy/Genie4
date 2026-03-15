@@ -45,6 +45,7 @@ mono bin/Debug/net48/Genie.exe
 | RichTextBox character formatting | ⚠️ No-op | `EM_SETCHARFORMAT` skipped |
 | Command-line arguments | ⚠️ Ignored | `Interaction.Command()` returns `""` on Mono. Future fix: thread `args` from `Main()` through `DirectConnect()`. |
 | Plugin system | ❌ Not supported | The VB.NET plugin host (`Plugins.vbproj`) is excluded from the net48 build. See future work below. |
+| Folder/file menu items ("Files >" submenu) | ❌ Crash | Menu items that launch `explorer.exe` or `notepad.exe` (Genie, Maps, Plugins, Scripts, Logs, Art directories) will throw an exception on Mac/Linux. Avoid using these menu items on Mono. |
 | `Handle.ToInt32()` on 64-bit | ⚠️ Pre-existing bug | Multiple call sites in `ComponentRichTextBox.cs` may overflow on 64-bit. Deferred — unrelated to this porting work. |
 
 ## Plugin System — Future Work

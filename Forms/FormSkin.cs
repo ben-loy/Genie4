@@ -814,8 +814,8 @@ namespace GenieClient
                     LText = "#" + e.LinkText;
                 }
 #else
-                // LinkStart/LinkLength are .NET 6+ only. On net48/Mono, custom link text
-                // extraction is unavailable; fall back to prepending '#' to the raw link text.
+                // LinkClickedEventArgs.LinkStart and LinkLength do not exist in .NET Framework 4.8.
+                // On net48/Mono, custom link text extraction is unavailable; fall back to prepending '#' to the raw link text.
                 LText = "#" + e.LinkText;
 #endif
             }

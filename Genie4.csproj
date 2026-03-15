@@ -37,7 +37,7 @@
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWindowsForms Condition="'$(TargetFramework)' == 'net6.0-windows' Or '$(TargetFramework)' == 'net48'">true</UseWindowsForms>
     <ImportWindowsDesktopTargets Condition="'$(TargetFramework)' == 'net6.0-windows'">true</ImportWindowsDesktopTargets>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
   </PropertyGroup>
