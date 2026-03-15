@@ -93,10 +93,12 @@ namespace GenieClient.Genie
             }
         }
 
-        private void HandleGenieException(string section, string message, string description = null) // Pass it up
+        private void HandleGenieException(string section, string message, string description = null)
         {
+            // Disable auto-logging so the log path stops being attempted after a write failure.
+            // Do NOT call GenieError.Error here — we are already inside an EventGenieError handler
+            // and doing so would cause infinite recursion.
             Config.bAutoLog = false;
-            GenieError.Error(section, message, description);
         }
 
         public void Config_ConfigChanged(Config.ConfigFieldUpdated oField)
