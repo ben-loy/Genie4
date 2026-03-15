@@ -383,8 +383,13 @@ namespace GenieClient.Genie
             }
         }
 
+#if !DESKTOP
         public Font m_oMonoFont = new Font("Courier New", 9, FontStyle.Regular);
         public Font m_oInputFont = new Font("Courier New", 9, FontStyle.Regular);
+#else
+        public Font? m_oMonoFont = null; // GDI+ not supported cross-platform; fonts handled by Avalonia
+        public Font? m_oInputFont = null;
+#endif
 
         public event ConfigChangedEventHandler ConfigChanged;
 
@@ -410,33 +415,31 @@ namespace GenieClient.Genie
             UpdateMapperScripts
         }
 
+#if !DESKTOP
         public Font MonoFont
         {
-            get
-            {
-                return m_oMonoFont;
-            }
-
-            set
-            {
-                m_oMonoFont = value;
-                ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont);
-            }
+            get { return m_oMonoFont; }
+            set { m_oMonoFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont); }
         }
 
         public Font InputFont
         {
-            get
-            {
-                return m_oInputFont;
-            }
-
-            set
-            {
-                m_oInputFont = value;
-                ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont);
-            }
+            get { return m_oInputFont; }
+            set { m_oInputFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont); }
         }
+#else
+        public Font? MonoFont
+        {
+            get { return m_oMonoFont; }
+            set { m_oMonoFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont); }
+        }
+
+        public Font? InputFont
+        {
+            get { return m_oInputFont; }
+            set { m_oInputFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont); }
+        }
+#endif
 
         public bool Save(string sFileName = "settings.cfg")
         {
