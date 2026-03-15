@@ -49,8 +49,10 @@ namespace GenieClient
             public byte bReserved1;
         }
 
+#if WINDOWS
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+#endif
 
         private const int WM_USER = 0x400;
         private const int EM_GETCHARFORMAT = WM_USER + 58;
@@ -1004,7 +1006,9 @@ namespace GenieClient
             var wpar = new IntPtr(SCF_SELECTION);
             var lpar = Marshal.AllocCoTaskMem(Marshal.SizeOf(cf));
             Marshal.StructureToPtr(cf, lpar, false);
+#if WINDOWS
             var res = SendMessage(handle, EM_SETCHARFORMAT, wpar, lpar);
+#endif
             Marshal.FreeCoTaskMem(lpar);
         }
 
