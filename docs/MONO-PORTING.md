@@ -20,13 +20,20 @@ Mono ships its own `msbuild` which includes the .NET Framework 4.8 reference ass
 The `dotnet` CLI cannot build `net48` on Mac/Linux — use `msbuild` from the Mono install.
 
 ```bash
-msbuild Genie4.csproj /p:TargetFramework=net48
+msbuild Genie4.csproj /p:TargetFramework=net48 /p:BuildProjectReferences=false
 ```
 
-If `msbuild` is not on your PATH after installing Mono:
+`BuildProjectReferences=false` is required because Mono's msbuild does not correctly evaluate
+the `Condition` on the `<ProjectReference>` for the Windows-only plugin project.
+
+If `msbuild` is not on your PATH after installing Mono from mono-project.com:
 ```bash
-/Library/Frameworks/Mono.framework/Versions/Current/bin/msbuild Genie4.csproj /p:TargetFramework=net48
+/Library/Frameworks/Mono.framework/Versions/Current/bin/msbuild Genie4.csproj /p:TargetFramework=net48 /p:BuildProjectReferences=false
 ```
+
+> **Note:** The Homebrew `mono` formula (6.14) ships `xbuild` which is too old for SDK-style
+> projects. Install Mono from [mono-project.com](https://www.mono-project.com/download/stable/)
+> to get a working `msbuild`.
 
 ## Run
 
