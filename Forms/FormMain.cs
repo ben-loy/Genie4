@@ -8332,7 +8332,7 @@ namespace GenieClient
 
         private void OpenUserDataDirectoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = LocalDirectory.Path, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + LocalDirectory.Path + "\"", UseShellExecute = true });
         }
 
         private void SaveSizedDefaultLayoutToolStripMenuItem_Click(object sender, EventArgs e)
@@ -8618,32 +8618,32 @@ namespace GenieClient
 
         private void genieToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = LocalDirectory.Path, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + LocalDirectory.Path + "\"", UseShellExecute = true });
         }
 
         private void mapsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.MapDir, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.MapDir + "\"", UseShellExecute = true });
         }
 
         private void pluginsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.PluginDir, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.PluginDir + "\"", UseShellExecute = true });
         }
 
         private void scriptsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.ScriptDir, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.ScriptDir + "\"", UseShellExecute = true });
         }
 
         private void logsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.sLogDir, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.sLogDir + "\"", UseShellExecute = true });
         }
 
         private void artToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.ArtDir, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.ArtDir + "\"", UseShellExecute = true });
         }
 
         private void toolStripMenuItemClassicConnect_Click(global::System.Object sender, global::System.EventArgs e)
