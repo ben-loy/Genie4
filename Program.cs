@@ -11,7 +11,9 @@ namespace GenieClient
         [STAThread]
         static void Main(string[] args)
         {
+#if WINDOWS
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
+#endif
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 

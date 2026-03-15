@@ -49,8 +49,10 @@ namespace GenieClient
             public byte bReserved1;
         }
 
+#if WINDOWS
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+#endif
 
         private const int WM_USER = 0x400;
         private const int EM_GETCHARFORMAT = WM_USER + 58;
@@ -458,7 +460,7 @@ namespace GenieClient
             {
                 try
                 {
-                    foreach (Globals.HighlightRegExp.Highlight oHighlight in m_oParentForm.Globals.HighlightRegExpList.Values)
+                    foreach (GenieClient.Genie.Globals.HighlightRegExp.Highlight oHighlight in m_oParentForm.Globals.HighlightRegExpList.Values)
                     {
                         if (oHighlight.IsActive) ParseRegExpHighlight(oHighlight);
                     }
@@ -474,7 +476,7 @@ namespace GenieClient
             }
         }
 
-        private void ParseRegExpHighlight(int StartIndex, string Line, Globals.HighlightRegExp.Highlight Highlight)
+        private void ParseRegExpHighlight(int StartIndex, string Line, GenieClient.Genie.Globals.HighlightRegExp.Highlight Highlight)
         {
             int iDiff = Line.Length - Line.TrimStart(Conversions.ToChar(Constants.vbCr)).Length; // RichText does not add both cr+lf
             foreach (Match oMatch in Highlight.HighlightRegex.Matches(Line))
@@ -1004,7 +1006,9 @@ namespace GenieClient
             var wpar = new IntPtr(SCF_SELECTION);
             var lpar = Marshal.AllocCoTaskMem(Marshal.SizeOf(cf));
             Marshal.StructureToPtr(cf, lpar, false);
+#if WINDOWS
             var res = SendMessage(handle, EM_SETCHARFORMAT, wpar, lpar);
+#endif
             Marshal.FreeCoTaskMem(lpar);
         }
 

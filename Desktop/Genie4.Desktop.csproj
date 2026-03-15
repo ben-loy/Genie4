@@ -1,0 +1,109 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>warnings</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GenieClient.Desktop</RootNamespace>
+    <AssemblyName>Genie.Desktop</AssemblyName>
+    <!-- DESKTOP symbol used by shared files to conditionalize WinForms-dependent code -->
+    <DefineConstants>$(DefineConstants);DESKTOP</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Root-level shared files -->
+  <ItemGroup>
+    <Compile Include="../RegexOptions.cs" />
+    <Compile Include="../LocalDirectory.cs" />
+  </ItemGroup>
+
+  <!-- Avalonia -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+  </ItemGroup>
+
+  <!-- Shared dependencies -->
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
+    <!-- 8.0.0 required for Host.CreateApplicationBuilder() (added in 7.0); Genie4.csproj uses 6.0.0 for net48 compat -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- Libs DLLs (MSIL, compatible with net8.0) -->
+  <ItemGroup>
+    <Reference Include="Antlr3.Runtime">
+      <HintPath>../Libs/Antlr3.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Interfaces">
+      <HintPath>../Libs/Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Jint">
+      <HintPath>../Libs/Jint.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Shared Core -->
+  <ItemGroup>
+    <Compile Include="../Core/Command.cs" />
+    <Compile Include="../Core/Connection.cs" />
+    <Compile Include="../Core/Game.cs" />
+    <Compile Include="../Core/GenieError.cs" />
+  </ItemGroup>
+
+  <!-- Shared Lists.
+       Spec lists: ArrayList, Classes, CommandQueue, Config, Globals, Highlights, Macros, Names, SortedList.
+       Additional files included because Globals.cs depends on them: Aliases, CollectionList, Events, ScriptList, VolatileHighlight.
+       Macros.cs and KeyCode.cs included; WinForms.Keys usage inside them is guarded #if !DESKTOP in Task 4. -->
+  <ItemGroup>
+    <Compile Include="../Lists/Aliases.cs" />
+    <Compile Include="../Lists/ArrayList.cs" />
+    <Compile Include="../Lists/Classes.cs" />
+    <Compile Include="../Lists/CollectionList.cs" />
+    <Compile Include="../Lists/CommandQueue.cs" />
+    <Compile Include="../Lists/Config.cs" />
+    <Compile Include="../Lists/Events.cs" />
+    <Compile Include="../Lists/Globals.cs" />
+    <Compile Include="../Lists/Highlights.cs" />
+    <Compile Include="../Lists/Macros.cs" />
+    <Compile Include="../Lists/Names.cs" />
+    <Compile Include="../Lists/ScriptList.cs" />
+    <Compile Include="../Lists/SortedList.cs" />
+    <Compile Include="../Lists/VolatileHighlight.cs" />
+  </ItemGroup>
+
+  <!-- Shared Script -->
+  <ItemGroup>
+    <Compile Include="../Script/Eval.cs" />
+    <Compile Include="../Script/JavaScript.cs" />
+    <Compile Include="../Script/LUAScript.cs" />
+    <Compile Include="../Script/MathEval.cs" />
+    <Compile Include="../Script/Script.cs" />
+    <Compile Include="../Script/Trace.cs" />
+  </ItemGroup>
+
+  <!-- Shared Utility (EnumWindows.cs excluded — Windows-only P/Invoke without guard).
+       Script/Trace.cs added to Script group; present on disk, needed for Script.cs compilation.
+       KeyCode.cs included; StringToKey() method that returns System.Windows.Forms.Keys is guarded #if !DESKTOP in Task 4. -->
+  <ItemGroup>
+    <Compile Include="../Utility/ColorCode.cs" />
+    <Compile Include="../Utility/Crypto.cs" />
+    <Compile Include="../Utility/DownloadResult.cs" />
+    <Compile Include="../Utility/EmbeddedAssembly.cs" />
+    <Compile Include="../Utility/FileHandler.cs" />
+    <Compile Include="../Utility/INaturalComparer.cs" />
+    <Compile Include="../Utility/KeyCode.cs" />
+    <Compile Include="../Utility/Log.cs" />
+    <Compile Include="../Utility/PluginServices.cs" />
+    <Compile Include="../Utility/Sound.cs" />
+    <Compile Include="../Utility/Updater.cs" />
+    <Compile Include="../Utility/Utility.cs" />
+    <Compile Include="../Utility/Win32Utility.cs" />
+    <Compile Include="../Utility/WindowFlash.cs" />
+    <Compile Include="../Utility/XMLConfig.cs" />
+  </ItemGroup>
+
+</Project>

@@ -243,6 +243,7 @@ namespace GenieClient.Mapper
             try
             {
                 var xdoc = new XmlDocument();
+                xdoc.XmlResolver = null;
                 XmlNodeList xnlist;
                 var diDirectory = new DirectoryInfo(m_oGlobals.Config.MapDir);
                 foreach (FileInfo dif in diDirectory.GetFiles())
@@ -252,7 +253,7 @@ namespace GenieClient.Mapper
                         if ((dif.Extension.ToLower() ?? "") == ".xml")
                     {
                         xdoc = new XmlDocument();
-                        
+                        xdoc.XmlResolver = null;
                         xdoc.Load(new StreamReader(dif.FullName,true));
                         xnlist = xdoc.SelectNodes("zone/node");
                         foreach (XmlNode xn in xnlist)
@@ -302,6 +303,7 @@ namespace GenieClient.Mapper
         private void EchoRoomsOnDisk(Node oNode)
         {
             var xdoc = new XmlDocument();
+            xdoc.XmlResolver = null;
             XmlNodeList xnlist;
             var diDirectory = new DirectoryInfo(m_oGlobals.Config.MapDir);
             bool bMatch = false;
@@ -310,6 +312,7 @@ namespace GenieClient.Mapper
                 if ((dif.Extension.ToLower() ?? "") == ".xml")
                 {
                     xdoc = new XmlDocument();
+                    xdoc.XmlResolver = null;
                     xdoc.Load(new StreamReader(dif.FullName, true));
                     xnlist = xdoc.SelectNodes("zone/node");
                     foreach (XmlNode xn in xnlist)

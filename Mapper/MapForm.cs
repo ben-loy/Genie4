@@ -538,6 +538,7 @@ namespace GenieClient.Mapper
             try
             {
                 var xdoc = new XmlDocument();
+                xdoc.XmlResolver = null;
                 XmlNodeList xnlist;
                 if (sPath.Contains(@"\") == false)
                 {
@@ -545,6 +546,7 @@ namespace GenieClient.Mapper
                 }
 
                 xdoc = new XmlDocument();
+                xdoc.XmlResolver = null;
                 xdoc.Load(new StreamReader(sPath, true));
                 var z = new Zone();
                 var xZone = xdoc.SelectSingleNode("zone");
@@ -615,6 +617,7 @@ namespace GenieClient.Mapper
             try
             {
                 var xdoc = new XmlDocument();
+                xdoc.XmlResolver = null;
                 XmlNodeList xnlist;
                 if (sPath.Contains(@"\") == false)
                 {
@@ -627,6 +630,7 @@ namespace GenieClient.Mapper
                     return false;
                 m_CurrentMapFile = sPath;
                 xdoc = new XmlDocument();
+                xdoc.XmlResolver = null;
                 xdoc.Load(new StreamReader(sPath, true));
                 var xZone = xdoc.SelectSingleNode("zone");
                 if (!Information.IsNothing(xZone))

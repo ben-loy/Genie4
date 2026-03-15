@@ -1,5 +1,7 @@
 ﻿using System;
+#if !DESKTOP
 using System.Windows.Forms;
+#endif
 using Microsoft.VisualBasic.CompilerServices;
 
 namespace GenieClient.Genie
@@ -172,6 +174,7 @@ namespace GenieClient.Genie
             Zoom = 251
         }
 
+#if !DESKTOP
         public static System.Windows.Forms.Keys StringToKey(string sHotkey)
         {
             try
@@ -185,5 +188,8 @@ namespace GenieClient.Genie
                 return default;
             }
         }
+#else
+        public static int StringToKey(string sHotkey) => 0; // Stub: macros not supported on Desktop
+#endif
     }
 }
