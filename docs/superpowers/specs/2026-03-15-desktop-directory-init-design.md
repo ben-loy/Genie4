@@ -31,7 +31,7 @@ startup init block as its first action.
 
 ## Directory Structure Created
 
-Mirrors `FormMain.cs` lines 2179–2190 exactly:
+Mirrors `FormMain.cs` lines 2179–2190 (`CreateGenieFolders` private method):
 
 ```
 {LocalDirectory.Path}/
@@ -50,34 +50,50 @@ Mirrors `FormMain.cs` lines 2179–2190 exactly:
 
 `Directory.CreateDirectory` is idempotent — safe to call on every launch.
 
+### `Utility.MoveLayoutFiles()` — intentionally excluded
+
+`FormMain.CreateGenieFolders()` calls `Utility.MoveLayoutFiles()` between
+creating `Config/PluginKeys/` and `Help/`. This is a one-time migration
+helper that moves `*.layout` files from `Config/` to `Config/Layout/`. It
+uses `FileSystem.Dir()` (a VB.NET Windows-only API), and a fresh Desktop
+install has no pre-existing layout files to migrate. It is intentionally
+excluded from the Desktop init.
+
 ## Path Resolution
 
 `LocalDirectory.CheckUserDirectory()` checks whether a `Config/` folder
 exists alongside the binary (portable mode). If not found, it calls
-`SetUserDataDirectory()`, which on Mac/Linux resolves to:
+`SetUserDataDirectory()`.
+
+`LocalDirectory.SetUserDataDirectory()` has a `#if DESKTOP` branch that
+uses `Assembly.GetExecutingAssembly().GetName().Name` (= `"Genie.Desktop"`)
+instead of `Application.ProductName`. On Mac/Linux this resolves to:
 
 ```
-~/.config/Genie4.Desktop/
+~/.config/Genie.Desktop/
 ```
 
-On Windows (net6.0-windows build, not affected by this change):
+On Windows with the WinForms build (`Genie4.csproj`, `net6.0-windows`, `DESKTOP` not defined), `Application.ProductName` = `"Genie Client 4"`:
 
 ```
-%APPDATA%\Genie4\
+%APPDATA%\Genie Client 4\
 ```
+
+This change does not affect the WinForms build.
 
 ## Implementation
 
 ```csharp
 public override async void OnFrameworkInitializationCompleted()
 {
-    // Mirror FormMain startup directory initialization
+    // Mirror FormMain.CreateGenieFolders() startup directory initialization
     LocalDirectory.CheckUserDirectory();
     string dataPath = LocalDirectory.Path;
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Config"));
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Config", "Profiles"));
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Config", "Layout"));
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Config", "PluginKeys"));
+    // Note: Utility.MoveLayoutFiles() is intentionally omitted — Windows-only migration aid
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Help"));
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Icons"));
     System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dataPath, "Logs"));
@@ -89,6 +105,15 @@ public override async void OnFrameworkInitializationCompleted()
     // ... existing host builder code ...
 }
 ```
+
+## Exception Handling
+
+`Directory.CreateDirectory` can throw `UnauthorizedAccessException` if the
+path is not writable. Since `OnFrameworkInitializationCompleted` is
+`async void`, any unhandled exception will be routed to Avalonia's global
+unhandled exception handler (which terminates the app with a crash dialog by
+default). No try/catch is added around the init block — a failure to create
+the data directory is a fatal startup error and should surface immediately.
 
 ## Side Effects
 
