@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.VisualBasic;
@@ -177,7 +178,7 @@ namespace GenieClient
                     sLocation += @"\";
                 }
 
-                Interaction.Shell("\"" + m_oGlobals.Config.sEditor + "\" \"" + sLocation + TreeView.SelectedNode.FullPath + "\"", AppWinStyle.NormalFocus, false);
+                Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + sLocation + TreeView.SelectedNode.FullPath + "\"", UseShellExecute = true });
             }
         }
 
@@ -253,7 +254,7 @@ namespace GenieClient
                     TreeView.Nodes.Add(tnFile);
                 }
 
-                Interaction.Shell("\"" + m_oGlobals.Config.sEditor + "\" \"" + sLocation + scriptName + "\"", AppWinStyle.NormalFocus, false);
+                Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + sLocation + scriptName + "\"", UseShellExecute = true });
             }
 
             My.MyProject.Forms.DialogScriptName.ScriptName = string.Empty;

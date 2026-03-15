@@ -3321,7 +3321,7 @@ namespace GenieClient
                             sTemp = LocalDirectory.Path + @"\Scripts\" + sTemp;
                         }
 
-                        Interaction.Shell("\"" + m_oGlobals.Config.sEditor + "\" \"" + sTemp, AppWinStyle.NormalFocus, false);
+                        Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + sTemp + "\"", UseShellExecute = true });
                     }
                 }
             }
@@ -7741,7 +7741,8 @@ namespace GenieClient
         {
             if (File.Exists(Conversions.ToString(Conversions.ToString(LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"]) + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log")))
             {
-                Interaction.Shell(Conversions.ToString(Conversions.ToString("\"" + m_oGlobals.Config.sEditor + "\" \"" + LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"]) + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log\""), AppWinStyle.NormalFocus, false);
+                string logPath = LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"] + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
+                Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + logPath + "\"", UseShellExecute = true });
             }
             else
             {
@@ -8331,7 +8332,7 @@ namespace GenieClient
 
         private void OpenUserDataDirectoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + LocalDirectory.Path, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = LocalDirectory.Path, UseShellExecute = true });
         }
 
         private void SaveSizedDefaultLayoutToolStripMenuItem_Click(object sender, EventArgs e)
@@ -8617,32 +8618,32 @@ namespace GenieClient
 
         private void genieToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + LocalDirectory.Path, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = LocalDirectory.Path, UseShellExecute = true });
         }
 
         private void mapsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + m_oGlobals.Config.MapDir, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.MapDir, UseShellExecute = true });
         }
 
         private void pluginsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + m_oGlobals.Config.PluginDir, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.PluginDir, UseShellExecute = true });
         }
 
         private void scriptsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + m_oGlobals.Config.ScriptDir, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.ScriptDir, UseShellExecute = true });
         }
 
         private void logsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + m_oGlobals.Config.sLogDir, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.sLogDir, UseShellExecute = true });
         }
 
         private void artToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Interaction.Shell("explorer.exe " + m_oGlobals.Config.ArtDir, AppWinStyle.NormalFocus, false);
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = m_oGlobals.Config.ArtDir, UseShellExecute = true });
         }
 
         private void toolStripMenuItemClassicConnect_Click(global::System.Object sender, global::System.EventArgs e)
