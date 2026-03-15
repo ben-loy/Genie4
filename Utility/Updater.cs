@@ -8,7 +8,9 @@ using System.Text.Json.Serialization;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+#if !DESKTOP
 using System.Windows.Forms;
+#endif
 using System.Runtime.CompilerServices;
 
 namespace GenieClient
@@ -91,7 +93,11 @@ namespace GenieClient
 
         public static async Task UpdateUpdater(bool autoUpdate)
         {
+#if !DESKTOP
             if (!UpdaterIsCurrent && !autoUpdate && MessageBox.Show(@"An updated version of Lamp is available. It is recommended to update Lamp before continuing. Would you like to update now?", "Update Lamp?", MessageBoxButtons.YesNoCancel) != DialogResult.Yes) return;
+#else
+            if (!UpdaterIsCurrent && !autoUpdate) return; // Desktop: no dialog, skip silently
+#endif
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
             client.DefaultRequestHeaders.Add("User-Agent", "Genie Client Updater");
