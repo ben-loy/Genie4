@@ -21,9 +21,13 @@ public partial class MainWindow : Window
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var account = AccountBox.Text ?? string.Empty;
-        var password = PasswordBox.Text ?? string.Empty;
+        // TODO(sub-project 2): Replace DirectConnect with Game.Connect(genieKey, account, password, character, "DR")
+        // which routes through eaccess.play.net for full Simutronics account authentication.
+        // Account and password fields are UI placeholders — collected here for future use.
+        var account = AccountBox.Text ?? string.Empty;    // reserved for future EACCESS auth
+        var password = PasswordBox.Text ?? string.Empty;  // reserved for future EACCESS auth
         var character = CharacterBox.Text ?? string.Empty;
+        _ = account; _ = password; // suppress unused-variable warnings until wired
 
         if (string.IsNullOrWhiteSpace(character))
         {
@@ -56,6 +60,8 @@ public partial class MainWindow : Window
 
     private void AppendOutput(string text)
     {
+        // TODO(sub-project 2): Replace with styled run appends (RichTextBlock or custom renderer).
+        // String concatenation here is O(n) per line; acceptable only for foundation scaffolding.
         OutputText.Text = (OutputText.Text ?? string.Empty) + text + "\n";
         OutputScroll.Offset = new Avalonia.Vector(OutputScroll.Offset.X, double.MaxValue);
     }

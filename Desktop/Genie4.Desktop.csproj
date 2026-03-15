@@ -28,6 +28,7 @@
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
+    <!-- 8.0.0 required for Host.CreateApplicationBuilder() (added in 7.0); Genie4.csproj uses 6.0.0 for net48 compat -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
   </ItemGroup>
