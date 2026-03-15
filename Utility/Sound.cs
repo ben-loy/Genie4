@@ -1,4 +1,6 @@
+#if WINDOWS
 using System.Runtime.InteropServices;
+#endif
 using Microsoft.VisualBasic.CompilerServices;
 
 namespace GenieClient.Genie

@@ -7,6 +7,8 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+// Note: using System.Speech.Synthesis was removed — no SpeechSynthesizer usage exists in this file.
+// TTS is not supported on Mac/Linux (net48/Mono). See docs/MONO-PORTING.md.
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
