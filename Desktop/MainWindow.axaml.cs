@@ -17,6 +17,7 @@ public partial class MainWindow : Window
         _game = game;
         _game.EventPrintText += OnPrintText;
         _game.EventDisconnected += OnDisconnected;
+        _game.EventPrintError += OnPrintError;
     }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -30,16 +31,13 @@ public partial class MainWindow : Window
             AppendOutput("[Connect] Account and password are required.");
             return;
         }
-        if (string.IsNullOrWhiteSpace(character))
-        {
-            AppendOutput("[Connect] Character name is required.");
-            return;
-        }
 
         // Disable before dispatching — ensures the button is disabled before OnDisconnected
         // could possibly fire (prevents a re-enable/disable race on immediate failure).
         ConnectButton.IsEnabled = false;
-        AppendOutput($"[Connecting as {character}...]");
+        AppendOutput(string.IsNullOrWhiteSpace(character)
+            ? "[Listing characters...]"
+            : $"[Connecting as {character}...]");
         _ = Task.Run(() =>
         {
             try
@@ -79,6 +77,11 @@ public partial class MainWindow : Window
     private void OnDisconnected()
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() => ConnectButton.IsEnabled = true);
+    }
+
+    private void OnPrintError(string text)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text));
     }
 
     private void AppendOutput(string text)
