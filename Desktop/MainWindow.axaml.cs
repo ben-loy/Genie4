@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Input;
+using Avalonia.Media;
 using GenieClient.Genie;
+using Color = System.Drawing.Color;
 
 namespace GenieClient.Desktop;
 
@@ -28,16 +32,16 @@ public partial class MainWindow : Window
 
         if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
         {
-            AppendOutput("[Connect] Account and password are required.");
+            AppendOutput("[Connect] Account and password are required.\n");
             return;
         }
 
         // Disable before dispatching — ensures the button is disabled before OnDisconnected
         // could possibly fire (prevents a re-enable/disable race on immediate failure).
         ConnectButton.IsEnabled = false;
-        AppendOutput(string.IsNullOrWhiteSpace(character)
+        AppendOutput((string.IsNullOrWhiteSpace(character)
             ? "[Listing characters...]"
-            : $"[Connecting as {character}...]");
+            : $"[Connecting as {character}...]") + "\n");
         _ = Task.Run(() =>
         {
             try
@@ -48,7 +52,7 @@ public partial class MainWindow : Window
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    AppendOutput($"[Connect error: {ex.Message}]");
+                    AppendOutput($"[Connect error: {ex.Message}]\n");
                     ConnectButton.IsEnabled = true;
                 });
             }
@@ -69,9 +73,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnPrintText(string text, Color color, Color bgcolor, Game.WindowTarget targetwindow, string targetwindowstring, bool mono, bool isprompt, bool isinput)
+    private void OnPrintText(string text, Color color, Color bgcolor,
+                             Game.WindowTarget targetwindow, string targetwindowstring,
+                             bool mono, bool isprompt, bool isinput)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text));
+        // mono: font switching deferred to font-configuration sub-project;
+        //   both mono and non-mono runs are monospace in this pass (inherit control default).
+        // isprompt, isinput: reserved for future sub-projects.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text, color, bgcolor));
     }
 
     private void OnDisconnected()
@@ -84,11 +93,43 @@ public partial class MainWindow : Window
         Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text));
     }
 
-    private void AppendOutput(string text)
+    /// <summary>
+    /// Converts a System.Drawing.Color to an Avalonia brush.
+    /// Returns null for transparent or empty colours so the Run inherits the control default.
+    /// </summary>
+    private static IBrush? ToBrush(Color c)
+        => (c.IsEmpty || c.A == 0)
+           ? null
+           : new SolidColorBrush(new Avalonia.Media.Color(c.A, c.R, c.G, c.B));
+
+    private void AppendOutput(string text,
+                               Color fg = default,
+                               Color bg = default)
     {
-        // TODO(sub-project 2): Replace with styled run appends (RichTextBlock or custom renderer).
-        // String concatenation here is O(n) per line; acceptable only for foundation scaffolding.
-        OutputText.Text = (OutputText.Text ?? string.Empty) + text + "\n";
+        IBrush? fgBrush = ToBrush(fg);
+        IBrush? bgBrush = ToBrush(bg);
+
+        // Normalize line endings to guard against CRLF sequences from the game protocol.
+        text = text.Replace("\r\n", "\n").Replace("\r", "\n");
+
+        // Each segment becomes a Run; LineBreaks are inserted between segments.
+        // Capacity hint: worst case is one Run + one LineBreak per segment.
+        string[] segments = text.Split('\n');
+        var inlines = new List<Inline>(segments.Length * 2);
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].Length > 0)
+            {
+                var run = new Run(segments[i]);
+                if (fgBrush != null) run.Foreground = fgBrush;
+                if (bgBrush != null) run.Background = bgBrush;
+                inlines.Add(run);
+            }
+            if (i < segments.Length - 1)
+                inlines.Add(new LineBreak());
+        }
+
+        OutputText.Inlines.AddRange(inlines);
         OutputScroll.Offset = new Avalonia.Vector(OutputScroll.Offset.X, double.MaxValue);
     }
 }
