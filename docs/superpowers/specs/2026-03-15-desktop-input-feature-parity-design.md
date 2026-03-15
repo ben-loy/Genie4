@@ -28,7 +28,9 @@ A custom `RichTextBox` subclass (~284 lines) that owns all input logic: a histor
 
 **New file:** `Desktop/CommandInputController.cs`
 
-**Modified file:** `Desktop/MainWindow.axaml.cs` — constructor instantiates the controller; `CommandBox_KeyDown` becomes a one-liner delegate.
+**Modified files:**
+- `Desktop/MainWindow.axaml.cs` — constructor instantiates the controller; `CommandBox_KeyDown` becomes a one-liner delegate.
+- `Core/Game.cs` — add one public accessor: `public Globals Globals => m_oGlobals;`
 
 `CommandInputController` receives its three dependencies at construction time and acts directly on them. It raises no events and has no rendering concerns.
 
@@ -48,6 +50,12 @@ _controller = new CommandInputController(_game, CommandBox, OutputScroll);
 // Replace CommandBox_KeyDown body:
 private void CommandBox_KeyDown(object? sender, KeyEventArgs e)
     => _controller.HandleKeyDown(e);
+```
+
+`Game.cs` change (minimal — one line added to the class body):
+
+```csharp
+public Globals Globals => m_oGlobals;
 ```
 
 ---
@@ -76,6 +84,8 @@ private string _pendingInput = string.Empty;      // saved when nav begins
 4. Reset `_historyPos = -1` and `_pendingInput = string.Empty`.
 5. Reset tab completion state.
 6. If `_game.Globals.Config.bKeepInput` is `true`: `CommandBox.SelectAll()`. Otherwise: `CommandBox.Clear()`.
+
+> **Access note:** Throughout this spec, `_game.Globals` refers to the public accessor `public Globals Globals => m_oGlobals` added to `Game.cs` in the Architecture section above.
 
 ### Up arrow
 
@@ -117,17 +127,18 @@ Any key that is not `Tab` resets: `_lastKeyWasTab = false`, `_tabPattern = strin
 
 ### Completion context selection
 
-Evaluate `CommandBox.Text` at the moment Tab is pressed:
+Evaluate `CommandBox.Text` at the moment Tab is pressed using these three sequential checks:
 
-- **Script context:** text starts with `_game.Globals.Config.ScriptChar` **and** does not end with a space.
-  - Extract prefix = text after `ScriptChar`.
-  - Search `_game.Globals.Config.ScriptDir` for files whose name (without extension) starts with the prefix (case-insensitive).
-  - `_tabMatches` = sorted list of matching filenames (without extension).
-- **Alias context:** everything else (text does not start with `ScriptChar`, or ends with a space — in which case do nothing).
-  - Search `_game.Globals.AliasList` for entries whose `From` property starts with the current text (case-insensitive).
-  - `_tabMatches` = sorted list of matching `From` strings.
+1. **Script context:** text starts with `_game.Globals.Config.ScriptChar` **and** does not end with a space.
+   - Extract prefix = text after `ScriptChar`.
+   - Search `_game.Globals.Config.ScriptDir` for files whose name (without extension) starts with the prefix (case-insensitive).
+   - `_tabMatches` = sorted list of matching filenames (without extension).
 
-If text ends with a space in alias context, Tab does nothing.
+2. **Trailing-space guard:** if text ends with a space, Tab does nothing (return immediately). This applies whether or not the text starts with `ScriptChar`.
+
+3. **Alias context:** all remaining cases (text does not start with `ScriptChar` and does not end with a space).
+   - Iterate `_game.Globals.AliasList.Keys`, casting each entry to `string`. Collect those that start with the current text (case-insensitive, `StringComparison.OrdinalIgnoreCase`).
+   - `_tabMatches` = sorted list of matching alias keys.
 
 ### Tab key logic
 
@@ -149,6 +160,8 @@ On `Tab` press (`e.Handled = true` always):
 5. Insert at caret: remove `CommandBox.SelectedText` if any, then insert cleaned text at `CommandBox.CaretIndex`.
 
 **Note:** Avalonia's clipboard API is async. `HandleKeyDown` will be declared `async void` to support this.
+
+**Concurrency policy:** Key events that arrive while a Ctrl+V clipboard `await` is in flight are processed normally by Avalonia (they are not suppressed). Any such interleaved events may update `_historyPos`, `_lastKeyWasTab`, or `CommandBox.Text` before the paste resumes. This is acceptable — the MUD input box is single-user and real-time; the window of interleaving is tiny and last-writer-wins is a fine outcome.
 
 ---
 
@@ -196,6 +209,7 @@ Controlled by `_game.Globals.Config.bKeepInput` (existing `Config` property, sha
 | `Desktop/CommandInputController.cs` | New file — all input logic |
 | `Desktop/MainWindow.axaml.cs` | Add `_controller` field; wire in constructor; delegate `CommandBox_KeyDown` |
 | `Desktop/MainWindow.axaml` | No change |
+| `Core/Game.cs` | Add `public Globals Globals => m_oGlobals;` accessor |
 
 ---
 
