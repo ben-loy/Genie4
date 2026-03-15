@@ -814,10 +814,9 @@ namespace GenieClient
                     LText = "#" + e.LinkText;
                 }
 #else
-                if (!LText.StartsWith("http"))
-                {
-                    LText = "#" + e.LinkText;
-                }
+                // LinkStart/LinkLength are .NET 6+ only. On net48/Mono, custom link text
+                // extraction is unavailable; fall back to prepending '#' to the raw link text.
+                LText = "#" + e.LinkText;
 #endif
             }
             EventLinkClicked?.Invoke(LText, e);
