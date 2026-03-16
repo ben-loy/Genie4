@@ -320,7 +320,179 @@ public partial class MainWindow : Window
         }
     }
 
-    private void WireCommandEvents() { }
+    private void WireCommandEvents()
+    {
+        // Game.Globals is a read-only property; cannot pass by ref directly.
+        var globals = _game.Globals;
+        _command = new Command(ref globals);
+
+        // ── Text output ──────────────────────────────────────────────────────────
+
+        // Script/command echo to a named window (Color.WhiteSmoke, no BG)
+        _command.EventEchoText += (sText, sWindow) =>
+            Dispatcher.UIThread.Post(() => RouteCommandText(sText, sWindow, Color.WhiteSmoke, Color.Empty));
+
+        // Script echo with explicit color
+        _command.EventEchoColorText += (sText, oColor, oBgColor, sWindow) =>
+            Dispatcher.UIThread.Post(() => RouteCommandText(sText, sWindow, oColor, oBgColor));
+
+        // Link text — treat same as EchoText for now (link behavior deferred)
+        _command.EventLinkText += (sText, sLink, sWindow) =>
+            Dispatcher.UIThread.Post(() => RouteCommandText(sText, sWindow, Color.WhiteSmoke, Color.Empty));
+
+        // ── Network ──────────────────────────────────────────────────────────────
+
+        // Send raw bytes to game socket
+        _command.EventSendRaw += (sText) =>
+            _game.SendRaw(sText);
+
+        // Send processed text to game (with optional trigger-on-input)
+        _command.EventSendText += (sText, bUserInput, sOrigin) =>
+        {
+            _game.SendText(sText, bUserInput, sOrigin);
+            if (_game.Globals.Config.bTriggerOnInput)
+                Task.Run(() => ParseTriggers(sText));
+        };
+
+        // ── Parsing and scripts ──────────────────────────────────────────────────
+
+        // Script-generated text line → run through triggers
+        _command.EventParseLine += (sText) =>
+        {
+            if (!string.IsNullOrWhiteSpace(sText))
+                Task.Run(() => ParseTriggers(sText, false));
+        };
+
+        // Run a named script file
+        _command.EventRunScript += (sText) =>
+            Task.Run(() => LoadAndRunScript(sText));
+
+        // ── Window management ────────────────────────────────────────────────────
+
+        // Command clears a named window (same handler as game EventClearWindow)
+        _command.EventClearWindow += (sWindow) =>
+            Dispatcher.UIThread.Post(() => _dockManager.ClearPanel(sWindow));
+
+        // Command or script changes the window title
+        _command.EventChangeWindowTitle += (sWindow, sComment) =>
+            Dispatcher.UIThread.Post(() => UpdateWindowTitle());
+
+        // ── Connection lifecycle ─────────────────────────────────────────────────
+
+        _command.EventConnect    += (account, password, character, game, isLich) =>
+            Task.Run(() => _game.Connect(string.Empty, account, password, character, game));
+        _command.EventDisconnect += () => _game.Disconnect();
+        _command.EventReconnect  += () => { /* TODO: reconnect — call Disconnect() then Connect() with saved profile; Game has no Reconnect() method */ };
+        _command.EventExit       += () => Dispatcher.UIThread.Post(Close);
+
+        // ── Variable changes (Command also fires this) ───────────────────────────
+        _command.EventVariableChanged += OnVariableChanged;
+
+        // ── Script UI (stubs — script panel UI deferred) ─────────────────────────
+        _command.EventListScripts       += (_)    => { /* TODO: list scripts panel */ };
+        _command.EventScriptTrace       += (_)    => { /* TODO: script trace panel */ };
+        _command.EventScriptAbort       += (_)    => { /* TODO: script abort UI */ };
+        _command.EventScriptPause       += (_)    => { /* TODO: script pause UI */ };
+        _command.EventScriptPauseOrResume += (_)  => { /* TODO: script pause/resume UI */ };
+        _command.EventScriptReload      += (_)    => { /* TODO: script reload UI */ };
+        _command.EventScriptResume      += (_)    => { /* TODO: script resume UI */ };
+        _command.EventScriptVariables   += (_, _) => { /* TODO: script variables panel */ };
+        _command.EventPresetChanged     += (_)    => { /* TODO: reapply highlight colors */ };
+
+        // ── Status bar / debug stubs ─────────────────────────────────────────────
+        _command.EventStatusBar     += (_, _) => { /* TODO: status bar text */ };
+        _command.EventScriptDebug   += (_, _) => { /* TODO: script debug output */ };
+
+        // ── Plugin lifecycle (plugin phase) ──────────────────────────────────────
+        _command.ListPlugins  += ()    => { /* TODO: plugin phase */ };
+        _command.LoadPlugin   += (_)   => { /* TODO: plugin phase */ };
+        _command.UnloadPlugin += (_)   => { /* TODO: plugin phase */ };
+        _command.ReloadPlugins += ()   => { /* TODO: plugin phase */ };
+        _command.DisablePlugin += (_)  => { /* TODO: plugin phase */ };
+        _command.EnablePlugin  += (_)  => { /* TODO: plugin phase */ };
+
+        // ── Image/misc stubs ─────────────────────────────────────────────────────
+        _command.EventAddImage      += (f, w, wi, h) => { /* TODO: inline images */ };
+    }
+
+    private void RouteCommandText(string sText, string sWindow, Color oColor, Color oBgColor)
+    {
+        bool isMono = sText.StartsWith("mono ", StringComparison.OrdinalIgnoreCase);
+        if (isMono) sText = sText[5..];
+
+        if (string.IsNullOrEmpty(sWindow)
+            || sWindow.Equals("game", StringComparison.OrdinalIgnoreCase)
+            || sWindow.Equals("main", StringComparison.OrdinalIgnoreCase))
+        {
+            _dockManager.Route(Game.WindowTarget.Main, string.Empty, sText, oColor, oBgColor);
+        }
+        else
+        {
+            _dockManager.Route(Game.WindowTarget.Other, sWindow, sText, oColor, oBgColor);
+        }
+    }
+
+    private void LoadAndRunScript(string sText)
+    {
+        var al = Utility.ParseArgs(sText, true);
+        if (al.Count == 0) return;
+
+        string scriptName = al[0].ToString()!.ToLower().Trim().TrimStart('#');
+        if (!scriptName.EndsWith($".{_game.Globals.Config.ScriptExtension}"))
+            scriptName += $"." + _game.Globals.Config.ScriptExtension;
+
+        // Abort duplicate if configured
+        if (_game.Globals.Config.bAbortDupeScript && _scriptList.AcquireReaderLock())
+        {
+            try
+            {
+                foreach (Script existing in _scriptList)
+                    if (existing.FileName == scriptName) existing.AbortScript();
+            }
+            finally { _scriptList.ReleaseReaderLock(); }
+        }
+
+        var oScript = new Script(_game.Globals);
+        oScript.EventPrintError  += (sErr)           => Dispatcher.UIThread.Post(() =>
+            _dockManager.Route(Game.WindowTarget.Main, string.Empty, sErr, Color.WhiteSmoke, Color.DarkRed));
+        oScript.EventPrintText   += (sTxt, clr, bg)  => Dispatcher.UIThread.Post(() =>
+            _dockManager.Route(Game.WindowTarget.Main, string.Empty, sTxt, clr, bg));
+        oScript.EventSendText    += (text, script, toQueue, doCommand) =>
+            Task.Run(() => HandleScriptSendText(text, script, toQueue, doCommand));
+        oScript.EventStatusChanged += (_, _) => { /* TODO: script status toolbar */ };
+        oScript.EventDebugChanged  += (_, _) => { /* TODO: script debug UI */ };
+
+        if (!oScript.LoadFile(scriptName, al)) return;
+
+        if (_scriptListNew.AcquireWriterLock())
+        {
+            try { _scriptListNew.Add(oScript); }
+            finally { _scriptListNew.ReleaseWriterLock(); }
+        }
+        oScript.RunScript();
+    }
+
+    private void HandleScriptSendText(string text, string script, bool toQueue, bool doCommand)
+    {
+        bool sendToGame = !text.StartsWith(_game.Globals.Config.cCommandChar.ToString());
+        if (!toQueue)
+        {
+            _ = _command?.ParseCommand(text, sendToGame, false, script);
+        }
+        else
+        {
+            string sNumber = string.Empty;
+            foreach (char c in text)
+            {
+                if (char.IsDigit(c) || c == '.') sNumber += c;
+                else break;
+            }
+            double delay = sNumber.Length > 0 ? double.Parse(sNumber) : 0;
+            string action = _game.Globals.ParseGlobalVars(
+                sNumber.Length > 0 ? text[sNumber.Length..].Trim() : text);
+            _game.Globals.CommandQueue.AddToQueue(delay, action, true, doCommand, doCommand);
+        }
+    }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
