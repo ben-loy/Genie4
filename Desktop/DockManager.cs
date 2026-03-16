@@ -166,6 +166,16 @@ public class DockManager
             panelName = "main";
         }
 
+        // For named sub-windows (WindowTarget.Other) that have never been opened,
+        // redirect text to main rather than auto-showing the window.
+        if (target == Game.WindowTarget.Other
+            && !_everMadeVisible.Contains(panelName))
+        {
+            _panels.TryGetValue("main", out var mainPanel);
+            (mainPanel ?? GetOrCreate("main")).AppendText(text, fg, bg);
+            return;
+        }
+
         var panel = GetOrCreate(panelName);
 
         // Auto-show a panel the first time game text arrives for it, unless the
