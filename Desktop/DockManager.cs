@@ -291,6 +291,10 @@ public class DockManager
 
     private void SetVisible(GameOutputPanel panel, bool visible)
     {
+        // Main panel cannot be hidden — it has no close button, but guard defensively.
+        if (!visible && string.Equals(panel.WindowName, "main", StringComparison.OrdinalIgnoreCase))
+            return;
+
         // Guard: already in desired state.
         if (visible == !panel.IsOutputHidden) return;
 
@@ -349,10 +353,16 @@ public class DockManager
         name = name.ToLower();
         if (_panels.TryGetValue(name, out var existing)) return existing;
 
+        bool isMainPanel = string.Equals(name, "main", StringComparison.OrdinalIgnoreCase);
+
         var panel = new GameOutputPanel(name);
         _panels[name] = panel;
         AddToDock(panel);
         AddWindowsMenuItem(panel);
+
+        // Main panel cannot be closed — hide the × button so it is never clickable.
+        if (isMainPanel)
+            panel.CanClose = false;
 
         // DockManager handles CloseRequested for docked panels.
         // For floating panels, FloatingWindow.Closing runs first (sets IsOutputHidden=true),

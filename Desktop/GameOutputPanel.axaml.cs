@@ -28,6 +28,14 @@ public partial class GameOutputPanel : UserControl
 
     public bool IsOutputHidden { get; set; }
 
+    /// <summary>
+    /// Set to false to hide the × button for panels that must not be closed (e.g. Main).
+    /// </summary>
+    public bool CanClose
+    {
+        set => CloseButton.IsVisible = value;
+    }
+
     // Expose inner ScrollViewer so DockManager can hand it to CommandInputController.
     public ScrollViewer OutputScroll => OutputScrollViewer;
 
