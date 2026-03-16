@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -24,6 +25,8 @@ public partial class MainWindow : Window
         _game.EventDisconnected += OnDisconnected;
         _game.EventPrintError += OnPrintError;
         _controller = new CommandInputController(_game, CommandBox, OutputScroll);
+        _game.EventVariableChanged += OnVariableChanged;
+        UpdateWindowTitle();
     }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -77,11 +80,37 @@ public partial class MainWindow : Window
     private void OnDisconnected()
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() => ConnectButton.IsEnabled = true);
+        UpdateWindowTitle();
     }
 
     private void OnPrintError(string text)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text));
+    }
+
+    private void OnVariableChanged(string variable)
+    {
+        if (variable is "$gamename" or "$connected" or "$charactername")
+            UpdateWindowTitle();
+    }
+
+    private void UpdateWindowTitle()
+    {
+        var gameName = _game.GameName;
+        var charName = _game.CharacterName;
+        var connected = _game.IsConnected;
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var sb = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(gameName))
+                sb.Append(gameName).Append(": ");
+            if (!string.IsNullOrEmpty(charName))
+                sb.Append(charName).Append(' ');
+            sb.Append(connected ? "[Connected]" : "[Not connected]");
+            sb.Append(" - Genie ").Append(version);
+            Title = sb.ToString();
+        });
     }
 
     /// <summary>
