@@ -64,6 +64,11 @@ public partial class GameOutputPanel : UserControl
     {
         if (IsOutputHidden) return;
 
+        // Internal control tokens — never display; @suspend@ also clears the panel.
+        var trimmed = text.Trim();
+        if (trimmed == "@suspend@") { ClearOutput(); return; }
+        if (trimmed == "@resume@")  { return; }
+
         IBrush? fgBrush = ToBrush(fg);
         IBrush? bgBrush = ToBrush(bg);
 
