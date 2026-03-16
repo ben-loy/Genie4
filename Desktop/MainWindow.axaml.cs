@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
+using GenieClient;
 using GenieClient.Genie;
 using Color = System.Drawing.Color;
 
@@ -31,6 +34,11 @@ public partial class MainWindow : Window
     private bool _autoUpdateLamp = false;
     private bool _checkUpdatesOnStartup = true;
 
+    private Command? _command;
+    private readonly ScriptList _scriptList    = new ScriptList();
+    private readonly ScriptList _scriptListNew = new ScriptList();
+    private DispatcherTimer? _gameLoopTimer;
+
     public MainWindow(Game game)
     {
         InitializeComponent();
@@ -49,11 +57,166 @@ public partial class MainWindow : Window
         _game.EventVariableChanged += OnVariableChanged;
 
         // 4. Save layout on window close.
-        Closing += (_, _) => _dockManager.SaveDefaultLayout();
+        Closing += (_, _) =>
+        {
+            _gameLoopTimer?.Stop();
+            _dockManager.SaveDefaultLayout();
+        };
+
+        Opened += OnWindowOpened;
 
         UpdateWindowTitle();
         _MenuPluginsNoPlugins.IsEnabled = false;
     }
+
+    private async void OnWindowOpened(object? sender, EventArgs e)
+    {
+        Opened -= OnWindowOpened; // fire once
+        await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        AppendInit("Using Encoding: Unicode (UTF-8)\r\n");
+        AppendInit($"Genie User Data Path: {LocalDirectory.Path}\r\n\r\n");
+
+        // ConfigDir is read fresh inside each lambda so that if settings.cfg changes
+        // the config path, all subsequent loads use the updated value.
+        await RunLoad("Loading Settings...",         () => _game.Globals.Config.Load(_game.Globals.Config.ConfigDir + @"\settings.cfg"));
+        await RunLoad("Loading Presets...",          () => _game.Globals.PresetList.Load(_game.Globals.Config.ConfigDir + @"\presets.cfg"));
+        await RunLoad("Loading Global Variables...", () => _game.Globals.VariableList.Load(_game.Globals.Config.ConfigDir + @"\variables.cfg"));
+        await RunLoad("Loading Highlights...",       () => _game.Globals.LoadHighlights(_game.Globals.Config.ConfigDir + @"\highlights.cfg"));
+        await RunLoad("Loading Names...",            () => _game.Globals.NameList.Load(_game.Globals.Config.ConfigDir + @"\names.cfg"));
+        await RunLoad("Loading Macros...",           () => _game.Globals.MacroList.Load(_game.Globals.Config.ConfigDir + @"\macros.cfg"));
+        await RunLoad("Loading Aliases...",          () => _game.Globals.AliasList.Load(_game.Globals.Config.ConfigDir + @"\aliases.cfg"));
+        await RunLoad("Loading Substitutes...",      () => _game.Globals.SubstituteList.Load(_game.Globals.Config.ConfigDir + @"\substitutes.cfg"));
+        await RunLoad("Loading Gags...",             () => _game.Globals.GagList.Load(_game.Globals.Config.ConfigDir + @"\gags.cfg"));
+        await RunLoad("Loading Triggers...",         () => _game.Globals.TriggerList.Load(_game.Globals.Config.ConfigDir + @"\triggers.cfg"));
+        await RunLoad("Loading Classes...",          () => _game.Globals.ClassList.Load(_game.Globals.Config.ConfigDir + @"\classes.cfg"));
+
+        WireGameEvents();
+        WireCommandEvents();
+        StartGameLoopTimer();
+    }
+
+    private async Task RunLoad(string label, Action load)
+    {
+        AppendInit(label);
+        try
+        {
+            await Task.Run(load);
+            AppendInit("OK\r\n");
+        }
+        catch
+        {
+            AppendInit("FAILED\r\n");
+        }
+    }
+
+    private void AppendInit(string text) =>
+        _dockManager.Route(Game.WindowTarget.Main, string.Empty,
+                           text, Color.WhiteSmoke, Color.Empty);
+
+    private void StartGameLoopTimer()
+    {
+        // Use explicit form (set Interval, wire Tick, then Start) to avoid ambiguity
+        // about whether the 3-arg constructor auto-starts in Avalonia 11.
+        _gameLoopTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(10)
+        };
+        _gameLoopTimer.Tick += OnGameLoopTick;
+        _gameLoopTimer.Start();
+    }
+
+    private void OnGameLoopTick(object? sender, EventArgs e)
+    {
+        // Poll event queue (custom Genie events, e.g. from scripts)
+        var evtAction = _game.Globals.Events.Poll();
+        if (!string.IsNullOrEmpty(evtAction))
+            _ = _command?.ParseCommand(evtAction, false, false, "Event");
+
+        // Poll command queue (script-queued commands with timing)
+        var webbed  = _game.Globals.VariableList["webbed"]?.ToString()  == "1";
+        var stunned = _game.Globals.VariableList["stunned"]?.ToString() == "1";
+        string queueCmd = _game.Globals.CommandQueue.Poll(HasRoundTime(), webbed, stunned);
+        while (!string.IsNullOrEmpty(queueCmd))
+        {
+            _ = _command?.ParseCommand(queueCmd, true, false, "Queue");
+            queueCmd = _game.Globals.CommandQueue.Poll(HasRoundTime(), webbed, stunned);
+        }
+
+        // Tick all running scripts
+        TickScripts();
+
+        // Move newly-created scripts into the active list
+        SafeAddScripts();
+
+        // Remove scripts that have finished
+        SafeRemoveExitedScripts();
+    }
+
+    private bool HasRoundTime() =>
+        DateTime.Now < _game.Globals.RoundTimeEnd;  // mirrors FormMain HasRoundTime property
+
+    private void TickScripts()
+    {
+        if (!_scriptList.AcquireReaderLock()) return;
+        try
+        {
+            foreach (Script oScript in _scriptList)
+                oScript.TickScript();   // method name is TickScript(), not Tick()
+        }
+        finally { _scriptList.ReleaseReaderLock(); }
+    }
+
+    // Mirrors FormMain.AddScripts() — lock order is _scriptList outer, _scriptListNew inner.
+    private void SafeAddScripts()
+    {
+        if (_scriptListNew.Count == 0) return;
+        if (!_scriptList.AcquireWriterLock()) return;
+        try
+        {
+            if (_scriptListNew.AcquireWriterLock())
+            {
+                try
+                {
+                    foreach (Script s in _scriptListNew)
+                        if (s != null) _scriptList.Add(s);
+                    _scriptListNew.Clear();
+                }
+                finally { _scriptListNew.ReleaseWriterLock(); }
+            }
+            // else: unable to acquire inner lock — skip this tick
+        }
+        finally { _scriptList.ReleaseWriterLock(); }
+    }
+
+    // Note: there is a benign race between reader release and writer acquire where
+    // indices could become stale if scripts are added concurrently. FormMain has
+    // the same race — this is not a regression.
+    private void SafeRemoveExitedScripts()
+    {
+        if (!_scriptList.AcquireReaderLock()) return;
+        var removeList = new List<int>();
+        try
+        {
+            for (int i = 0; i < _scriptList.Count; i++)
+                if (_scriptList[i].ScriptDone) removeList.Add(i);
+        }
+        finally { _scriptList.ReleaseReaderLock(); }
+
+        if (removeList.Count == 0) return;
+
+        if (_scriptList.AcquireWriterLock())
+        {
+            try { for (int i = removeList.Count - 1; i >= 0; i--) _scriptList.RemoveAt(removeList[i]); }
+            finally { _scriptList.ReleaseWriterLock(); }
+        }
+    }
+
+    private void WireGameEvents() { }
+    private void WireCommandEvents() { }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
