@@ -202,12 +202,13 @@ public class DockManager
     /// </summary>
     private void Float(GameOutputPanel panel)
     {
-        // Collapse docked position.
+        // Remove panel from docked grid so Avalonia allows reparenting to FloatingWindow.
+        // (Avalonia forbids a control having two visual parents simultaneously.)
         if (_slots.TryGetValue(panel.WindowName, out var slot))
         {
             slot.SavedWidth = _dockGrid.ColumnDefinitions[slot.PanelColIdx].Width;
             _dockGrid.ColumnDefinitions[slot.PanelColIdx].Width = new GridLength(0);
-            panel.IsVisible = false;
+            _dockGrid.Children.Remove(panel);
             if (slot.Splitter != null)
             {
                 _dockGrid.ColumnDefinitions[slot.SplitterColIdx].Width = new GridLength(0);
@@ -265,6 +266,8 @@ public class DockManager
         if (_slots.TryGetValue(panel.WindowName, out var slot))
         {
             _dockGrid.ColumnDefinitions[slot.PanelColIdx].Width = slot.SavedWidth;
+            // Re-add panel to grid; Grid.Column attached property is still correct.
+            _dockGrid.Children.Add(panel);
             panel.IsVisible = true;
             if (slot.Splitter != null)
             {
