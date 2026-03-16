@@ -125,10 +125,14 @@ public class DockManager
         var cfg = new XMLConfig();
         cfg.LoadXml("<Genie><Windows></Windows></Genie>");
 
-        // Calculate total non-splitter pixel width for SizeRatio.
-        double totalWidth = 0;
+        // Calculate total star-width for SizeRatio using SavedWidth as fallback for collapsed columns.
+        double totalStarWidth = 0;
         foreach (var (_, slot) in _slots)
-            totalWidth += _dockGrid.ColumnDefinitions[slot.PanelColIdx].ActualWidth;
+        {
+            double w = _dockGrid.ColumnDefinitions[slot.PanelColIdx].ActualWidth;
+            if (w <= 0) w = slot.SavedWidth.Value;  // panel is floating or hidden
+            totalStarWidth += w;
+        }
 
         int subIndex = 0;
 
@@ -140,8 +144,12 @@ public class DockManager
                 : $"Genie/Windows/Window{++subIndex}";
 
             double sizeRatio = 0;
-            if (_slots.TryGetValue(name, out var slot) && totalWidth > 0)
-                sizeRatio = _dockGrid.ColumnDefinitions[slot.PanelColIdx].ActualWidth / totalWidth;
+            if (_slots.TryGetValue(name, out var slot) && totalStarWidth > 0)
+            {
+                double w = _dockGrid.ColumnDefinitions[slot.PanelColIdx].ActualWidth;
+                if (w <= 0) w = slot.SavedWidth.Value;  // panel is floating or hidden
+                sizeRatio = w / totalStarWidth;
+            }
 
             double floatLeft = 0, floatTop = 0, floatW = 0, floatH = 0;
             if (_floatPositions.TryGetValue(name, out var fp))
@@ -249,7 +257,7 @@ public class DockManager
     /// Called by FloatingWindow via the dockAction closure.
     /// FloatingWindow closes itself after this returns.
     /// </summary>
-    public void Dock(GameOutputPanel panel)
+    private void Dock(GameOutputPanel panel)
     {
         panel.IsFloating = false;
 
@@ -381,9 +389,7 @@ public class DockManager
         }
 
         int panelColIdx = _dockGrid.ColumnDefinitions.Count;
-        var initialWidth = isMain
-            ? new GridLength(1, GridUnitType.Star)
-            : new GridLength(200, GridUnitType.Star);
+        var initialWidth = new GridLength(200, GridUnitType.Star);
 
         _dockGrid.ColumnDefinitions.Add(new ColumnDefinition(initialWidth));
         Grid.SetColumn(panel, panelColIdx);
@@ -440,7 +446,7 @@ public class DockManager
             const double totalStars = 1000;
             double stars = sizeRatio * totalStars;
             bool isMain  = string.Equals(id, "main", StringComparison.OrdinalIgnoreCase);
-            if (stars <= 0) stars = isMain ? totalStars : 200;
+            if (stars <= 0) stars = 200;
 
             var newWidth = new GridLength(stars, GridUnitType.Star);
             _dockGrid.ColumnDefinitions[slot.PanelColIdx].Width = newWidth;
