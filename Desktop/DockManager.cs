@@ -40,6 +40,19 @@ public class DockManager
     private readonly Dictionary<string, FloatState> _floatPositions
         = new(StringComparer.OrdinalIgnoreCase);
 
+    // Panels that have been visible at least once (user-enabled or auto-shown by text).
+    // A panel absent from this set is still in its pre-created-hidden startup state and
+    // will auto-show the first time game text routes to it.
+    private readonly HashSet<string> _everMadeVisible
+        = new(StringComparer.OrdinalIgnoreCase);
+
+    // Known sub-panel names in menu display order — matches the Windows Genie panel set.
+    private static readonly string[] KnownSubPanelNames =
+    [
+        "combat", "portrait", "inv", "familiar", "thoughts",
+        "logons", "death", "room", "log", "raw", "debug", "percwindow"
+    ];
+
     // ── WindowTarget → panel name routing table ───────────────────────────────
     private static readonly Dictionary<Game.WindowTarget, string> TargetMap = new()
     {
@@ -71,7 +84,31 @@ public class DockManager
         _dockGrid = dockGrid;
         _windowsMenu = windowsMenu;
 
-        GetOrCreate("main");   // Main panel always exists
+        GetOrCreate("main");   // Main panel always exists and is always visible
+        _everMadeVisible.Add("main");
+
+        // Pre-register all known sub-panels so every window appears in the Windows menu
+        // from the first launch. Each starts hidden; the user enables them from the menu,
+        // or they auto-appear when game text first routes to them via Route().
+        foreach (string name in KnownSubPanelNames)
+        {
+            var p = GetOrCreate(name);  // adds to dock (visible column) + menu item
+            // Collapse immediately — before LoadDefaultLayout restores any saved state.
+            p.IsOutputHidden = true;
+            p.IsVisible      = false;
+            if (_slots.TryGetValue(name, out var s))
+            {
+                s.SavedWidth = _dockGrid.ColumnDefinitions[s.PanelColIdx].Width;
+                _dockGrid.ColumnDefinitions[s.PanelColIdx].Width = new GridLength(0);
+                if (s.Splitter != null)
+                {
+                    _dockGrid.ColumnDefinitions[s.SplitterColIdx].Width = new GridLength(0);
+                    s.Splitter.IsVisible = false;
+                }
+            }
+            if (_menuItems.TryGetValue(name, out var mi)) mi.IsChecked = false;
+        }
+
         LoadDefaultLayout();   // Apply saved XML state (or default if file missing)
         SaveDefaultLayout();   // Write layout.xml on first launch if it didn't exist
     }
@@ -106,7 +143,14 @@ public class DockManager
             panelName = "main";
         }
 
-        GetOrCreate(panelName).AppendText(text, fg, bg);
+        var panel = GetOrCreate(panelName);
+
+        // Auto-show a panel the first time game text arrives for it, unless the
+        // user explicitly closed it (IsOutputHidden=true AND it was ever visible).
+        if (panel.IsOutputHidden && !_everMadeVisible.Contains(panelName))
+            SetVisible(panel, true);
+
+        panel.AppendText(text, fg, bg);
     }
 
     // ── Layout persistence (XML via XMLConfig) ────────────────────────────────
@@ -304,6 +348,7 @@ public class DockManager
 
         if (visible)
         {
+            _everMadeVisible.Add(panel.WindowName);
             panel.IsOutputHidden = false;
 
             bool wasFloating = _wasFloatingWhenHidden.TryGetValue(
