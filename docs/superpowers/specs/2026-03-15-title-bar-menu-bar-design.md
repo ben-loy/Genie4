@@ -12,7 +12,8 @@ Add a dynamic window title and a full menu bar to the Avalonia Desktop client (`
 - Window title reflects game name, character name, and connection state dynamically
 - Menu bar contains all top-level menus and sub-items from the Windows version
 - Checkable items track state with a `bool` field; visual checkmark deferred to feature implementation
-- No new files or classes; all changes confined to `MainWindow.axaml` and `MainWindow.axaml.cs`
+- `Core/Game.cs` gains two read-only properties (`GameName`, `CharacterName`) to expose VariableList values without making `_globals` public
+- All Desktop UI changes confined to `MainWindow.axaml` and `MainWindow.axaml.cs`
 
 ## Out of Scope
 
@@ -32,8 +33,8 @@ Add a dynamic window title and a full menu bar to the Avalonia Desktop client (`
 {gamename}: {charactername} [Not connected] - Genie {version}
 ```
 
-- `gamename` — `_globals.VariableList["gamename"]` (e.g. `"DR"`)
-- `charactername` — `_globals.VariableList["charactername"]` (e.g. `"Olinia"`)
+- `gamename` — `_game.GameName` (reads `VariableList["gamename"]` via new property on `Game`)
+- `charactername` — `_game.CharacterName` (reads `VariableList["charactername"]` via new property on `Game`)
 - `version` — `Assembly.GetExecutingAssembly().GetName().Version.ToString()`
 - When `gamename` is empty, the `{gamename}: ` prefix is omitted
 - When `charactername` is empty, it is omitted
@@ -41,7 +42,7 @@ Add a dynamic window title and a full menu bar to the Avalonia Desktop client (`
 ### Update Triggers
 
 `UpdateWindowTitle()` is called from:
-- `EventConnected` handler (already subscribed in `MainWindow.axaml.cs`)
+- `EventVariableChanged` handler, filtering for `"$connected"`, `"$gamename"`, and `"$charactername"` — `Game` has no public `EventConnected`; `EventVariableChanged("$connected")` fires from the internal connect handler and is the correct substitute
 - `EventDisconnected` handler (already subscribed)
 
 Must be dispatched to the UI thread: `Dispatcher.UIThread.Post(() => this.Title = strTitle)`.
@@ -179,26 +180,43 @@ Help
 
 ## Code-Behind Stubs
 
+### New Properties on `Core/Game.cs`
+
+```csharp
+/// Server-assigned game name from VariableList["gamename"]. Empty until server sends it.
+public string GameName => m_sGameName;
+
+/// In-game character name from VariableList["charactername"]. Safe on missing key (indexer returns null).
+public string CharacterName =>
+    m_oGlobals?.VariableList["charactername"]?.ToString() ?? string.Empty;
+```
+
 ### `UpdateWindowTitle()`
+
+May be called from any thread. Dispatches to UI thread internally.
 
 ```csharp
 private void UpdateWindowTitle()
 {
-    var sb = new System.Text.StringBuilder();
-    if (_globals.VariableList.ContainsKey("gamename") &&
-        _globals.VariableList["gamename"]?.ToString() is { Length: > 0 } gameName)
-        sb.Append(gameName).Append(": ");
-    if (_globals.VariableList.ContainsKey("charactername") &&
-        _globals.VariableList["charactername"]?.ToString() is { Length: > 0 } charName)
-        sb.Append(charName).Append(' ');
-    sb.Append(_game.IsConnected ? "[Connected]" : "[Not connected]");
-    sb.Append(" - Genie ");
-    sb.Append(Assembly.GetExecutingAssembly().GetName().Version);
-    Dispatcher.UIThread.Post(() => Title = sb.ToString());
+    var gameName = _game.GameName;
+    var charName = _game.CharacterName;
+    var connected = _game.IsConnected;
+    var version = Assembly.GetExecutingAssembly().GetName().Version;
+    Dispatcher.UIThread.Post(() =>
+    {
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrEmpty(gameName))
+            sb.Append(gameName).Append(": ");
+        if (!string.IsNullOrEmpty(charName))
+            sb.Append(charName).Append(' ');
+        sb.Append(connected ? "[Connected]" : "[Not connected]");
+        sb.Append(" - Genie ").Append(version);
+        Title = sb.ToString();
+    });
 }
 ```
 
-Called from both `EventConnected` and `EventDisconnected` handlers.
+Called from `EventVariableChanged` (filtering `$connected`, `$gamename`, `$charactername`) and `EventDisconnected`.
 
 ### Checkable State Fields
 
@@ -255,7 +273,8 @@ UpdateWindowTitle();
 
 | File | Change |
 |------|--------|
+| `Core/Game.cs` | Add `GameName` and `CharacterName` read-only properties |
 | `Desktop/MainWindow.axaml` | Add `Menu` docked to top of `DockPanel`; full item hierarchy in XAML |
-| `Desktop/MainWindow.axaml.cs` | Add `UpdateWindowTitle()`, checkable fields, and all stub click handlers |
+| `Desktop/MainWindow.axaml.cs` | Add `UpdateWindowTitle()`, event subscriptions, checkable fields, and all stub click handlers |
 
 No new files. No new classes.
