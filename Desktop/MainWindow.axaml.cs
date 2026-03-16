@@ -1,12 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
 using Avalonia.Input;
-using Avalonia.Media;
 using GenieClient.Genie;
 using Color = System.Drawing.Color;
 
@@ -16,6 +13,7 @@ public partial class MainWindow : Window
 {
     private readonly Game _game;
     private readonly CommandInputController _controller;
+    private readonly DockManager _dockManager;
 
     // Checkable menu state
     private bool _autoLog = false;
@@ -37,11 +35,22 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _game = game;
-        _game.EventPrintText += OnPrintText;
-        _game.EventDisconnected += OnDisconnected;
-        _game.EventPrintError += OnPrintError;
-        _controller = new CommandInputController(_game, CommandBox, OutputScroll);
+
+        // 1. DockManager FIRST — creates Main panel eagerly and loads XML layout.
+        _dockManager = new DockManager(DockGrid, _WindowsMenu);
+
+        // 2. CommandInputController needs MainScrollViewer (available after step 1).
+        _controller = new CommandInputController(_game, CommandBox, _dockManager.MainScrollViewer);
+
+        // 3. Wire text events AFTER _dockManager is assigned.
+        _game.EventPrintText       += OnPrintText;
+        _game.EventDisconnected    += OnDisconnected;
+        _game.EventPrintError      += OnPrintError;
         _game.EventVariableChanged += OnVariableChanged;
+
+        // 4. Save layout on window close.
+        Closing += (_, _) => _dockManager.SaveDefaultLayout();
+
         UpdateWindowTitle();
         _MenuPluginsNoPlugins.IsEnabled = false;
     }
@@ -54,16 +63,19 @@ public partial class MainWindow : Window
 
         if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
         {
-            AppendOutput("[Connect] Account and password are required.\n");
+            _dockManager.Route(Game.WindowTarget.Main, string.Empty,
+                "[Connect] Account and password are required.\n", default, default);
             return;
         }
 
-        // Disable before dispatching — ensures the button is disabled before OnDisconnected
-        // could possibly fire (prevents a re-enable/disable race on immediate failure).
         ConnectButton.IsEnabled = false;
-        AppendOutput((string.IsNullOrWhiteSpace(character)
+
+        var statusMessage = string.IsNullOrWhiteSpace(character)
             ? "[Listing characters...]"
-            : $"[Connecting as {character}...]") + "\n");
+            : $"[Connecting as {character}...]";
+        _dockManager.Route(Game.WindowTarget.Main, string.Empty,
+            statusMessage + "\n", default, default);
+
         _ = Task.Run(() =>
         {
             try
@@ -74,7 +86,8 @@ public partial class MainWindow : Window
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    AppendOutput($"[Connect error: {ex.Message}]\n");
+                    _dockManager.Route(Game.WindowTarget.Main, string.Empty,
+                        $"[Connect error: {ex.Message}]\n", default, default);
                     ConnectButton.IsEnabled = true;
                 });
             }
@@ -91,7 +104,8 @@ public partial class MainWindow : Window
         // mono: font switching deferred to font-configuration sub-project;
         //   both mono and non-mono runs are monospace in this pass (inherit control default).
         // isprompt, isinput: reserved for future sub-projects.
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text, color, bgcolor));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            _dockManager.Route(targetwindow, targetwindowstring, text, color, bgcolor));
     }
 
     private void OnDisconnected()
@@ -102,7 +116,8 @@ public partial class MainWindow : Window
 
     private void OnPrintError(string text)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            _dockManager.Route(Game.WindowTarget.Main, string.Empty, text, default, default));
     }
 
     private void OnVariableChanged(string variable)
@@ -128,46 +143,6 @@ public partial class MainWindow : Window
             sb.Append(" - Genie ").Append(version);
             Title = sb.ToString();
         });
-    }
-
-    /// <summary>
-    /// Converts a System.Drawing.Color to an Avalonia brush.
-    /// Returns null for transparent or empty colours so the Run inherits the control default.
-    /// </summary>
-    private static IBrush? ToBrush(Color c)
-        => (c.IsEmpty || c.A == 0)
-           ? null
-           : new SolidColorBrush(new Avalonia.Media.Color(c.A, c.R, c.G, c.B));
-
-    private void AppendOutput(string text,
-                               Color fg = default,
-                               Color bg = default)
-    {
-        IBrush? fgBrush = ToBrush(fg);
-        IBrush? bgBrush = ToBrush(bg);
-
-        // Normalize line endings to guard against CRLF sequences from the game protocol.
-        text = text.Replace("\r\n", "\n").Replace("\r", "\n");
-
-        // Each segment becomes a Run; LineBreaks are inserted between segments.
-        // Capacity hint: worst case is one Run + one LineBreak per segment.
-        string[] segments = text.Split('\n');
-        var inlines = new List<Inline>(segments.Length * 2);
-        for (int i = 0; i < segments.Length; i++)
-        {
-            if (segments[i].Length > 0)
-            {
-                var run = new Run(segments[i]);
-                if (fgBrush != null) run.Foreground = fgBrush;
-                if (bgBrush != null) run.Background = bgBrush;
-                inlines.Add(run);
-            }
-            if (i < segments.Length - 1)
-                inlines.Add(new LineBreak());
-        }
-
-        OutputText.Inlines.AddRange(inlines);
-        OutputScroll.Offset = new Avalonia.Vector(OutputScroll.Offset.X, double.MaxValue);
     }
 
     // ── File ──────────────────────────────────────────────────────────────────
@@ -204,19 +179,33 @@ public partial class MainWindow : Window
     private void MenuProfile_IncludePassword(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { _includePasswordInProfile = !_includePasswordInProfile; /* TODO */ }
 
     // ── Layout ────────────────────────────────────────────────────────────────
-    private void MenuLayout_Load(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_LoadDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_SaveAs(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_SaveDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_SaveSizedDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_Basic(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
+    private void MenuLayout_Load(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        // TODO: show OpenFileDialog, then call _dockManager.LoadLayout(path).
+        // File-picker dialog deferred to a future task.
+    }
+
+    private void MenuLayout_LoadDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => _dockManager.LoadDefaultLayout();
+
+    private void MenuLayout_SaveAs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        // TODO: show SaveFileDialog, then call _dockManager.SaveLayout(path).
+        // File-picker dialog deferred to a future task.
+    }
+
+    private void MenuLayout_SaveDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => _dockManager.SaveDefaultLayout();
+
+    private void MenuLayout_SaveSizedDefault(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* out of scope */ }
+    private void MenuLayout_Basic(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* out of scope */ }
     private void MenuLayout_IconBarDockTop(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_IconBarDockBottom(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_ScriptBarDockTop(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_ScriptBarDockBottom(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_HealthBarDockTop(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_HealthBarDockBottom(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
-    private void MenuLayout_MagicPanels(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
+    private void MenuLayout_MagicPanels(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* out of scope */ }
     private void MenuLayout_StatusBar(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_AlignInput(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuLayout_AlwaysOnTop(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { _alwaysOnTop = !_alwaysOnTop; /* TODO */ }
