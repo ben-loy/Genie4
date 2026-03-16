@@ -215,7 +215,100 @@ public partial class MainWindow : Window
         }
     }
 
-    private void WireGameEvents() { }
+    private void WireGameEvents()
+    {
+        // ── Active handlers ───────────────────────────────────────────────────────
+
+        // Clear a named output panel (window name string, not WindowTarget enum)
+        _game.EventClearWindow += (sWindow) =>
+            Dispatcher.UIThread.Post(() => _dockManager.ClearPanel(sWindow));
+
+        // Create/show a named sub-window on demand from game XML
+        // Skip "main" — it always exists. Cast objects to string.
+        _game.EventStreamWindow += (sID, sTitle, sIfClosed) =>
+        {
+            var name = sID?.ToString() ?? string.Empty;
+            if (string.Equals(name, "main", StringComparison.OrdinalIgnoreCase)) return;
+            Dispatcher.UIThread.Post(() => _dockManager.EnsureVisible(name));
+        };
+
+        // Text line from server — run through triggers and notify scripts
+        _game.EventTriggerParse += (sText) =>
+            Task.Run(() => ParseTriggers(sText));
+
+        // Server prompt received — notify all running scripts
+        _game.EventTriggerPrompt += () =>
+        {
+            if (!_scriptList.AcquireReaderLock()) return;
+            try { foreach (Script s in _scriptList) s.TriggerPrompt(); }
+            finally { _scriptList.ReleaseReaderLock(); }
+        };
+
+        // Movement detected — notify all running scripts
+        _game.EventTriggerMove += () =>
+        {
+            if (!_scriptList.AcquireReaderLock()) return;
+            try { foreach (Script s in _scriptList) s.TriggerMove(); }
+            finally { _scriptList.ReleaseReaderLock(); }
+        };
+
+        // ── Stubs (subscribed now, UI deferred to later sub-projects) ─────────────
+        _game.EventDataRecieveEnd  += () => { /* TODO: end-of-update flush */ };
+        _game.EventRoundTime       += (_) => { /* TODO: roundtime countdown bar */ };
+        _game.EventCastTime        += ()  => { /* TODO: cast timer bar */ };
+        _game.EventSpellTime       += ()  => { /* TODO: active spell timer */ };
+        _game.EventClearSpellTime  += ()  => { /* TODO: clear spell timer display */ };
+        _game.EventStatusBarUpdate += ()  => { /* TODO: vitals bars */ };
+        _game.EventParseXML        += (_) => { /* TODO: plugin XML forwarding */ };
+        _game.EventAddImage        += (filename, window, w, h) => { /* TODO: inline images */ };
+    }
+
+    private void ParseTriggers(string sText, bool bBufferWait = true)
+    {
+        if (!_triggersEnabled) return;
+        if (string.IsNullOrWhiteSpace(sText)) return;
+
+        // Trigger list — regex match → ParseCommand
+        if (_game.Globals.TriggerList.AcquireReaderLock())
+        {
+            try
+            {
+                foreach (Globals.Triggers.Trigger oTrigger in _game.Globals.TriggerList.Values)
+                {
+                    if (!oTrigger.IsActive || oTrigger.bIsEvalTrigger) continue;
+                    if (oTrigger.oRegexTrigger == null) continue;
+
+                    var match = oTrigger.oRegexTrigger.Match(sText);
+                    if (!match.Success) continue;
+
+                    var args = new System.Collections.ArrayList();
+                    for (int j = 1; j < match.Groups.Count; j++)
+                        args.Add(match.Groups[j].Value);
+
+                    // Substitute $1..$N into action string
+                    var action = oTrigger.sAction;
+                    for (int i = 0; i < _game.Globals.Config.iArgumentCount; i++)
+                        action = action.Replace("$" + (i + 1),
+                            i < args.Count ? args[i].ToString().Replace("\"", "") : string.Empty);
+                    if (args.Count > 0)
+                        action = action.Replace("$0", args[0].ToString().Replace("\"", ""));
+                    else
+                        action = action.Replace("$0", string.Empty);
+
+                    _ = _command?.ParseCommand(action, true, false, "Trigger");
+                }
+            }
+            finally { _game.Globals.TriggerList.ReleaseReaderLock(); }
+        }
+
+        // Script list — notify each running script
+        if (_scriptList.AcquireReaderLock())
+        {
+            try { foreach (Script s in _scriptList) s.TriggerParse(sText, bBufferWait); }
+            finally { _scriptList.ReleaseReaderLock(); }
+        }
+    }
+
     private void WireCommandEvents() { }
 
     private void ConnectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
