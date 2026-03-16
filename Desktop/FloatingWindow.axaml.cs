@@ -37,6 +37,9 @@ public partial class FloatingWindow : Window
 
         // Set flag BEFORE calling dockAction so Closing handler skips hide logic.
         _suppressHide = true;
+        // Clear Content first so the panel has no visual parent when Dock() re-adds
+        // it to the DockGrid. Avalonia forbids a control having two visual parents.
+        Content = null;
         _dockAction();   // DockManager.Dock(panel) — restores docked column
         Close();         // FloatingWindow closes itself after dock completes
     }
