@@ -88,8 +88,8 @@
       </MenuItem>
 
       <!-- Windows -->
-      <MenuItem Header="_Windows">
-        <!-- populated dynamically in a future sub-window feature -->
+      <MenuItem x:Name="_WindowsMenu" Header="_Windows">
+        <!-- populated dynamically by DockManager -->
       </MenuItem>
 
       <!-- Script -->
@@ -166,13 +166,8 @@
              KeyDown="CommandBox_KeyDown"
              Watermark="Enter command..." />
 
-    <!-- Text output -->
-    <ScrollViewer x:Name="OutputScroll" Margin="6,6,6,0">
-      <SelectableTextBlock x:Name="OutputText"
-                           FontFamily="Courier New,Consolas,monospace"
-                           FontSize="13"
-                           TextWrapping="Wrap" />
-    </ScrollViewer>
+    <!-- Dock area: DockManager adds columns and panels programmatically -->
+    <Grid x:Name="DockGrid" Margin="6,6,6,0" />
 
   </DockPanel>
 
