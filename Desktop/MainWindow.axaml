@@ -7,6 +7,147 @@
 
   <DockPanel>
 
+    <!-- Menu bar -->
+    <Menu DockPanel.Dock="Top">
+
+      <!-- File -->
+      <MenuItem Header="_File">
+        <MenuItem Header="Connect..." Click="MenuFile_Connect"/>
+        <MenuItem Header="Connect Using Profile..." Click="MenuFile_ConnectUsingProfile"/>
+        <Separator/>
+        <MenuItem Header="Open Directory">
+          <MenuItem Header="Genie"   Click="MenuDir_Genie"/>
+          <MenuItem Header="Scripts" Click="MenuDir_Scripts"/>
+          <MenuItem Header="Maps"    Click="MenuDir_Maps"/>
+          <MenuItem Header="Plugins" Click="MenuDir_Plugins"/>
+          <MenuItem Header="Logs"    Click="MenuDir_Logs"/>
+          <MenuItem Header="Art"     Click="MenuDir_Art"/>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="Auto Log"            Click="MenuFile_AutoLog"/>
+        <MenuItem Header="Open Log In Editor"  Click="MenuFile_OpenLogInEditor"/>
+        <Separator/>
+        <MenuItem Header="Auto Reconnect"            Click="MenuFile_AutoReconnect"/>
+        <MenuItem Header="Classic Connect Window"    Click="MenuFile_ClassicConnectWindow"/>
+        <MenuItem Header="Ignores/Gags Enabled"      Click="MenuFile_IgnoresEnabled"/>
+        <MenuItem Header="Triggers Enabled"          Click="MenuFile_TriggersEnabled"/>
+        <MenuItem Header="Plugins Enabled"           Click="MenuFile_PluginsEnabled"/>
+        <MenuItem Header="AutoMapper Enabled"        Click="MenuFile_AutoMapperEnabled"/>
+        <MenuItem Header="Images Enabled"            Click="MenuFile_ImagesEnabled"/>
+        <MenuItem Header="Mute Sounds"               Click="MenuFile_MuteSounds"/>
+        <Separator/>
+        <MenuItem Header="Show Raw Data"          Click="MenuFile_ShowRawData"/>
+        <MenuItem Header="Performance Test Parse" Click="MenuFile_PerformanceTestParse"/>
+        <Separator/>
+        <MenuItem Header="Exit" Click="MenuFile_Exit"/>
+      </MenuItem>
+
+      <!-- Edit -->
+      <MenuItem Header="_Edit">
+        <MenuItem Header="Paste Multi Line" Click="MenuEdit_PasteMultiLine"/>
+        <Separator/>
+        <MenuItem Header="Configuration..." Click="MenuEdit_Configuration"/>
+        <MenuItem Header="Update Images"    Click="MenuEdit_UpdateImages"/>
+      </MenuItem>
+
+      <!-- Profile -->
+      <MenuItem Header="_Profile">
+        <MenuItem Header="Load Profile..." Click="MenuProfile_Load"/>
+        <MenuItem Header="Save Profile"    Click="MenuProfile_Save"/>
+        <Separator/>
+        <MenuItem Header="Include Password In Profile" Click="MenuProfile_IncludePassword"/>
+      </MenuItem>
+
+      <!-- Layout -->
+      <MenuItem Header="_Layout">
+        <MenuItem Header="Load Layout..."       Click="MenuLayout_Load"/>
+        <MenuItem Header="Load Default Layout"  Click="MenuLayout_LoadDefault"/>
+        <Separator/>
+        <MenuItem Header="Save Layout As..."         Click="MenuLayout_SaveAs"/>
+        <MenuItem Header="Save Default Layout"       Click="MenuLayout_SaveDefault"/>
+        <MenuItem Header="Save Sized Default Layout" Click="MenuLayout_SaveSizedDefault"/>
+        <Separator/>
+        <MenuItem Header="Basic Layout" Click="MenuLayout_Basic"/>
+        <MenuItem Header="Icon Bar">
+          <MenuItem Header="Dock Top"    Click="MenuLayout_IconBarDockTop"/>
+          <MenuItem Header="Dock Bottom" Click="MenuLayout_IconBarDockBottom"/>
+        </MenuItem>
+        <MenuItem Header="Script Bar">
+          <MenuItem Header="Dock Top"    Click="MenuLayout_ScriptBarDockTop"/>
+          <MenuItem Header="Dock Bottom" Click="MenuLayout_ScriptBarDockBottom"/>
+        </MenuItem>
+        <MenuItem Header="Health Bar">
+          <MenuItem Header="Dock Top"    Click="MenuLayout_HealthBarDockTop"/>
+          <MenuItem Header="Dock Bottom" Click="MenuLayout_HealthBarDockBottom"/>
+        </MenuItem>
+        <MenuItem Header="Magic Panels" Click="MenuLayout_MagicPanels"/>
+        <MenuItem Header="Status Bar"   Click="MenuLayout_StatusBar"/>
+        <Separator/>
+        <MenuItem Header="Align Input to Game Window" Click="MenuLayout_AlignInput"/>
+        <MenuItem Header="Always On Top"              Click="MenuLayout_AlwaysOnTop"/>
+      </MenuItem>
+
+      <!-- Windows -->
+      <MenuItem Header="_Windows">
+        <!-- populated dynamically in a future sub-window feature -->
+      </MenuItem>
+
+      <!-- Script -->
+      <MenuItem Header="_Script">
+        <MenuItem Header="Script Explorer..."       Click="MenuScript_Explorer"/>
+        <MenuItem Header="Update Scripts"           Click="MenuScript_UpdateScripts"/>
+        <MenuItem Header="Update Scripts With Maps" Click="MenuScript_UpdateWithMaps"/>
+        <Separator/>
+        <MenuItem Header="Show Active Scripts"  Click="MenuScript_ShowActive"/>
+        <MenuItem Header="Trace Active Scripts" Click="MenuScript_TraceActive"/>
+        <Separator/>
+        <MenuItem Header="Pause All Scripts"  Click="MenuScript_PauseAll"/>
+        <MenuItem Header="Resume All Scripts" Click="MenuScript_ResumeAll"/>
+        <Separator/>
+        <MenuItem Header="Abort All Scripts" Click="MenuScript_AbortAll"/>
+        <MenuItem Header="Script Settings"   Click="MenuScript_Settings"/>
+      </MenuItem>
+
+      <!-- AutoMapper -->
+      <MenuItem Header="_AutoMapper">
+        <MenuItem Header="Show Window"    Click="MenuAutoMapper_ShowWindow"/>
+        <MenuItem Header="Update Maps"    Click="MenuAutoMapper_UpdateMaps"/>
+        <MenuItem Header="Script Settings" Click="MenuAutoMapper_Settings"/>
+      </MenuItem>
+
+      <!-- Plugins -->
+      <MenuItem Header="P_lugins">
+        <MenuItem x:Name="_MenuPluginsNoPlugins" Header="No plugins loaded"/>
+        <MenuItem Header="Update Plugins" Click="MenuPlugins_Update"/>
+      </MenuItem>
+
+      <!-- Help -->
+      <MenuItem Header="_Help">
+        <MenuItem Header="Check For Updates" Click="MenuHelp_CheckForUpdates"/>
+        <MenuItem Header="Force Update"      Click="MenuHelp_ForceUpdate"/>
+        <MenuItem Header="Load Test Client"  Click="MenuHelp_LoadTestClient"/>
+        <Separator/>
+        <MenuItem Header="AutoUpdate"               Click="MenuHelp_AutoUpdate"/>
+        <MenuItem Header="AutoUpdate Lamp"          Click="MenuHelp_AutoUpdateLamp"/>
+        <MenuItem Header="Check Updates on Startup" Click="MenuHelp_CheckUpdatesOnStartup"/>
+        <Separator/>
+        <MenuItem Header="Latest Release Page" Click="MenuHelp_LatestReleasePage"/>
+        <Separator/>
+        <MenuItem Header="Discord" Click="MenuHelp_Discord"/>
+        <MenuItem Header="GitHub"  Click="MenuHelp_GitHub"/>
+        <MenuItem Header="Wiki"    Click="MenuHelp_Wiki"/>
+        <Separator/>
+        <MenuItem Header="Community Links">
+          <MenuItem Header="Play.net"                 Click="MenuCommunity_Playnet"/>
+          <MenuItem Header="Elanthipedia"             Click="MenuCommunity_Elanthipedia"/>
+          <MenuItem Header="DR Service"               Click="MenuCommunity_DRService"/>
+          <MenuItem Header="Lich Discord"             Click="MenuCommunity_LichDiscord"/>
+          <MenuItem Header="Isharon's Genie Settings" Click="MenuCommunity_IsharonSettings"/>
+        </MenuItem>
+      </MenuItem>
+
+    </Menu>
+
     <!-- Connect bar -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="6,6,6,0">
       <TextBlock VerticalAlignment="Center" Text="Account:" />
