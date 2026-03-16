@@ -122,6 +122,29 @@ public class DockManager
     public ScrollViewer MainScrollViewer => _panels["main"].OutputScroll;
 
     /// <summary>
+    /// Clears the output text of the specified panel.
+    /// Defaults to "main" if sWindow is null or whitespace.
+    /// </summary>
+    public void ClearPanel(string sWindow)
+    {
+        var name = string.IsNullOrWhiteSpace(sWindow) ? "main" : sWindow.ToLower();
+        if (_panels.TryGetValue(name, out var panel))
+            panel.ClearOutput();
+    }
+
+    /// <summary>
+    /// Ensures the panel is visible, creating it if necessary.
+    /// Does nothing if name is null or whitespace.
+    /// </summary>
+    public void EnsureVisible(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var panel = GetOrCreate(name.ToLower());
+        if (panel.IsOutputHidden)
+            SetVisible(panel, true);
+    }
+
+    /// <summary>
     /// Routes a game text event to the correct panel (creating it if needed).
     /// Must be called on the UI thread.
     /// </summary>

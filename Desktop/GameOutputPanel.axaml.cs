@@ -39,6 +39,8 @@ public partial class GameOutputPanel : UserControl
     // Expose inner ScrollViewer so DockManager can hand it to CommandInputController.
     public ScrollViewer OutputScroll => OutputScrollViewer;
 
+    public void ClearOutput() => OutputText.Inlines?.Clear();
+
     public event EventHandler? FloatRequested;
     public event EventHandler? DockRequested;
     public event EventHandler? CloseRequested;
