@@ -275,27 +275,31 @@ public partial class MainWindow : Window
             {
                 foreach (Globals.Triggers.Trigger oTrigger in _game.Globals.TriggerList.Values)
                 {
-                    if (!oTrigger.IsActive || oTrigger.bIsEvalTrigger) continue;
-                    if (oTrigger.oRegexTrigger == null) continue;
+                    try
+                    {
+                        if (!oTrigger.IsActive || oTrigger.bIsEvalTrigger) continue;
+                        if (oTrigger.oRegexTrigger == null) continue;
 
-                    var match = oTrigger.oRegexTrigger.Match(sText);
-                    if (!match.Success) continue;
+                        var match = oTrigger.oRegexTrigger.Match(sText);
+                        if (!match.Success) continue;
 
-                    var args = new System.Collections.ArrayList();
-                    for (int j = 1; j < match.Groups.Count; j++)
-                        args.Add(match.Groups[j].Value);
+                        var args = new System.Collections.ArrayList();
+                        for (int j = 1; j < match.Groups.Count; j++)
+                            args.Add(match.Groups[j].Value);
 
-                    // Substitute $1..$N into action string
-                    var action = oTrigger.sAction;
-                    for (int i = 0; i < _game.Globals.Config.iArgumentCount; i++)
-                        action = action.Replace("$" + (i + 1),
-                            i < args.Count ? args[i].ToString().Replace("\"", "") : string.Empty);
-                    if (args.Count > 0)
-                        action = action.Replace("$0", args[0].ToString().Replace("\"", ""));
-                    else
-                        action = action.Replace("$0", string.Empty);
+                        // Substitute $1..$N into action string
+                        var action = oTrigger.sAction;
+                        for (int i = 0; i < _game.Globals.Config.iArgumentCount; i++)
+                            action = action.Replace("$" + (i + 1),
+                                i < args.Count ? args[i].ToString().Replace("\"", "") : string.Empty);
+                        if (args.Count > 0)
+                            action = action.Replace("$0", args[0].ToString().Replace("\"", ""));
+                        else
+                            action = action.Replace("$0", string.Empty);
 
-                    _ = _command?.ParseCommand(action, true, false, "Trigger");
+                        _ = _command?.ParseCommand(action, true, false, "Trigger");
+                    }
+                    catch { /* ignore — continue processing remaining triggers */ }
                 }
             }
             finally { _game.Globals.TriggerList.ReleaseReaderLock(); }
@@ -304,7 +308,14 @@ public partial class MainWindow : Window
         // Script list — notify each running script
         if (_scriptList.AcquireReaderLock())
         {
-            try { foreach (Script s in _scriptList) s.TriggerParse(sText, bBufferWait); }
+            try
+            {
+                foreach (Script s in _scriptList)
+                {
+                    try { s.TriggerParse(sText, bBufferWait); }
+                    catch { /* ignore — continue processing remaining scripts */ }
+                }
+            }
             finally { _scriptList.ReleaseReaderLock(); }
         }
     }
