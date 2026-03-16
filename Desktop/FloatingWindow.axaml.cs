@@ -31,6 +31,10 @@ public partial class FloatingWindow : Window
 
     private void OnDockRequested(object? sender, EventArgs e)
     {
+        // Unsubscribe from panel events before closing to prevent double-firing on reuse
+        _panel.DockRequested  -= OnDockRequested;
+        _panel.CloseRequested -= OnCloseRequested;
+
         // Set flag BEFORE calling dockAction so Closing handler skips hide logic.
         _suppressHide = true;
         _dockAction();   // DockManager.Dock(panel) — restores docked column
@@ -46,6 +50,10 @@ public partial class FloatingWindow : Window
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
+        // Unsubscribe from panel events to prevent double-firing on reuse
+        _panel.DockRequested  -= OnDockRequested;
+        _panel.CloseRequested -= OnCloseRequested;
+
         if (_suppressHide) return;
 
         // User closed without docking.
