@@ -9,7 +9,7 @@ Add dockable, floatable sub-windows to the Avalonia Desktop client, matching the
 
 ## Goals
 
-- All `WindowTarget` values (Main, Room, Thoughts, Combat, Inv, Familiar, Logons, Death, Log, ActiveSpells, Raw, Debug, Other) have their own named panel
+- All `WindowTarget` values (Unknown, Main, Room, Thoughts, Combat, Inv, Familiar, Logons, Death, Log, ActiveSpells, Raw, Debug, Portrait, Other) have routing support; `Unknown` routes silently to the Main panel (no dedicated panel created for it)
 - Panels can be docked (inside main window, resizable via `GridSplitter`) or floating (standalone Avalonia `Window`)
 - Floating windows can be re-docked
 - Panels can be shown/hidden via the Windows menu (checkable items, one per window type)
@@ -22,6 +22,7 @@ Add dockable, floatable sub-windows to the Avalonia Desktop client, matching the
 - Tab groups (multiple panels sharing one tab strip)
 - Per-window font/color configuration (separate future feature)
 - Status bar, health bars, icon bar (separate future features)
+- `MenuLayout_SaveSizedDefault`, `MenuLayout_Basic`, `MenuLayout_MagicPanels` — leave as no-op stubs (out of scope)
 
 ---
 
@@ -36,26 +37,35 @@ A reusable text output panel. Used both when docked and when floating.
 DockPanel
   ├── Title bar (DockPanel.Dock="Top")
   │     ├── Label: window name (e.g. "Thoughts")
-  │     ├── Button: "Float" (hidden when already floating)
+  │     ├── Button: "Float" (Visibility bound to IsFloating — Collapsed when IsFloating=true)
+  │     ├── Button: "Dock"  (Visibility bound to IsFloating — Collapsed when IsFloating=false)
   │     └── Button: "×" (close/hide)
-  └── ScrollViewer
-        └── SelectableTextBlock (monospace, wrapping enabled)
+  └── ScrollViewer (x:Name="OutputScroll")
+        └── SelectableTextBlock (x:Name="OutputText", monospace, wrapping enabled)
 ```
+
+**Constructor:** `public GameOutputPanel(string windowName)`
 
 **API:**
 ```csharp
 public partial class GameOutputPanel : UserControl
 {
-    public string WindowName { get; }          // e.g. "Thoughts"
-    public bool IsVisible { get; set; }
-    public event EventHandler? FloatRequested;
-    public event EventHandler? CloseRequested;
+    public GameOutputPanel(string windowName);
+
+    public string WindowName { get; }           // e.g. "thoughts"; lowercase; set in constructor
+    public bool IsFloating { get; set; }        // true when hosted in FloatingWindow; toggles Float/Dock button visibility
+    public bool IsOutputHidden { get; set; }    // true when panel is user-hidden; AppendText discards text when true
+    public ScrollViewer OutputScroll { get; }   // exposes inner scroll viewer (used by DockManager for MainScrollViewer property)
+
+    public event EventHandler? FloatRequested;  // fired by Float button click
+    public event EventHandler? DockRequested;   // fired by Dock button click
+    public event EventHandler? CloseRequested;  // fired by × button click
 
     public void AppendText(string text, Color fg, Color bg);
 }
 ```
 
-`AppendText` contains the inline-building logic currently in `MainWindow.AppendOutput` (normalize line endings → split on `\n` → build `Run`/`LineBreak` inlines → `Inlines.AddRange` → scroll to bottom).
+`AppendText` contains the inline-building logic currently in `MainWindow.AppendOutput` (normalize line endings → split on `\n` → build `Run`/`LineBreak` inlines → `Inlines.AddRange` → scroll to bottom). Text is only appended when `IsOutputHidden == false`.
 
 ### `FloatingWindow` (Window)
 
@@ -64,14 +74,26 @@ A thin Avalonia `Window` that hosts a single `GameOutputPanel` when detached fro
 ```csharp
 public class FloatingWindow : Window
 {
-    public FloatingWindow(GameOutputPanel panel);
-    public event EventHandler? DockRequested;  // fires when user clicks "Dock" in title bar
+    // dockAction: called when user clicks Dock — typically () => dockManager.Dock(panel)
+    public FloatingWindow(GameOutputPanel panel, Action dockAction);
 }
 ```
 
-- Hides the panel's "Float" button; shows a "Dock" button in the `FloatingWindow` chrome instead
-- On close: hides the window and marks the panel hidden (does not destroy)
-- Saves its `Position` and `ClientSize` to layout on `PositionChanged` / `SizeChanged`
+**Construction:** Sets `panel.IsFloating = true`. Adds the panel as content. Subscribes to `panel.DockRequested`, `panel.CloseRequested`, and `Window.Closing`.
+
+**Dock sequence (unambiguous ordering):**
+1. User clicks Dock button → `panel.DockRequested` fires
+2. `FloatingWindow` sets an internal `_suppressHide = true` flag
+3. `FloatingWindow` calls `dockAction()` — this runs `DockManager.Dock(panel)` synchronously, restoring the docked column
+4. `FloatingWindow` calls `this.Close()` — the `Window.Closing` handler sees `_suppressHide = true` and skips the hide logic
+5. `DockManager.Dock` does NOT call `FloatingWindow.Close()` — `FloatingWindow` closes itself after `dockAction()` returns
+
+**Close/hide sequence (OS close button or "×"):**
+1. `Window.Closing` fires (or `panel.CloseRequested`)
+2. `_suppressHide` is false → hide logic runs: sets `panel.IsOutputHidden = true`, `panel.IsFloating = false`, unchecks Windows menu item
+3. Window closes. Docked column is NOT restored.
+
+**Position/size tracking:** Subscribes to `PositionChanged` and `SizeChanged`; on each event, writes `Position` and `ClientSize` to `DockManager`'s in-memory layout state for this panel and triggers a layout save.
 
 ### `DockManager`
 
@@ -80,9 +102,14 @@ Central coordinator. Owns all `GameOutputPanel` instances and manages the docked
 ```csharp
 public class DockManager
 {
+    // Constructed in MainWindow constructor, immediately after InitializeComponent().
+    // Creates the Main panel eagerly and calls LoadDefaultLayout() as its last step.
     public DockManager(Grid dockGrid, MenuItem windowsMenu);
 
-    // Called by MainWindow.OnPrintText
+    // Exposes Main panel's scroll viewer for CommandInputController
+    public ScrollViewer MainScrollViewer { get; }
+
+    // Called by MainWindow text output sites (OnPrintText, OnPrintError, ConnectButton_Click)
     public void Route(Game.WindowTarget target, string targetName,
                       string text, Color fg, Color bg);
 
@@ -92,25 +119,42 @@ public class DockManager
     public void SaveDefaultLayout();
     public void LoadDefaultLayout();
 
+    // Called by the dockAction closure passed to FloatingWindow
+    public void Dock(GameOutputPanel panel);
+
     // Internal
+    private GameOutputPanel GetOrCreate(string panelName);
     private void AddToDock(GameOutputPanel panel);
     private void Float(GameOutputPanel panel);
-    private void Dock(GameOutputPanel panel);
-    private void SetVisible(GameOutputPanel panel, bool visible);
+    private void SetVisible(GameOutputPanel panel, bool visible);  // see Windows menu section
     private void PopulateWindowsMenu();
 }
 ```
 
 **Panel lifecycle:**
-1. On first `Route()` call for a window target, create `GameOutputPanel` for it, add it to the dock (rightmost column), add its menu item to the Windows menu (checked)
-2. Subsequent `Route()` calls find the existing panel and call `AppendText`
-3. If panel is hidden, text is silently discarded
+1. On first `Route()` call for a window target name, `GetOrCreate` creates a `GameOutputPanel(name)`, adds it to the dock as the new rightmost column, and adds a checked menu item to the Windows menu
+2. Subsequent `Route()` calls find the existing panel and call `AppendText` (which internally checks `IsOutputHidden`)
+3. The Main panel ("main") is created eagerly in the `DockManager` constructor
+
+**`Other` target edge cases:**
+- `targetName` null or empty → route to "main"
+- `GetOrCreate` uses a single `Dictionary<string, GameOutputPanel>` keyed by panel name. Deduplication is simply: "does a panel with this name already exist in the dictionary?" This covers both static names (from the routing table) and previously-created dynamic `Other` panels. Example: `targetName = "percwindow"` finds the existing ActiveSpells panel (keyed as "percwindow"); `targetName = "activespells"` creates a new dynamic panel (no existing entry). Repeated calls with the same `targetName` always find the same panel.
+
+**`SetVisible` behavior (re-enabling from Windows menu):**
+- If `panel.IsOutputHidden == false` already, no-op
+- Sets `panel.IsOutputHidden = false`
+- If the panel's docked column exists but is collapsed → restore column and paired splitter (makes it visible in dock)
+- If the panel was floating when hidden → recreate `FloatingWindow` at last known position
+- Updates Windows menu item to checked
+
+The "was floating when hidden" state is tracked in `DockManager` via a `Dictionary<GameOutputPanel, bool> _wasFloatingWhenHidden`. `DockManager.Float` sets `_wasFloatingWhenHidden[panel] = false` (resets it). The `FloatingWindow` close/hide sequence calls back to `DockManager.OnPanelHiddenWhileFloating(panel)` (an internal method or lambda stored at float time) which sets `_wasFloatingWhenHidden[panel] = true`. `SetVisible` reads this dictionary.
 
 **Windows menu:**
 - `DockManager` holds a reference to the `_Windows` `MenuItem`
 - On panel creation, inserts a `MenuItem` with `Header = panel.WindowName`, `IsCheckable = true`, `IsChecked = true`
+- Click handler calls `SetVisible(panel, !panel.IsOutputHidden)`
 - On show/hide, updates `IsChecked`
-- `Main` panel's menu item is always checked and disabled (cannot be hidden)
+- Main panel's menu item is always checked and disabled (cannot be hidden)
 
 ### `WindowLayoutState`
 
@@ -118,11 +162,11 @@ Plain serializable record (no external dependencies — use `System.Text.Json`):
 
 ```csharp
 public record PanelLayoutEntry(
-    string WindowName,    // e.g. "thoughts", "room"
+    string WindowName,      // lowercase panel name, e.g. "thoughts", "room"
     bool Visible,
     bool IsFloating,
-    double SizeRatio,     // star-size proportion in dock grid (if docked)
-    double FloatX,        // screen position (if floating)
+    double SizeRatio,       // normalized 0–1 proportion of total dock width (if docked; ignored if floating)
+    double FloatX,          // screen position (if floating; ignored if docked)
     double FloatY,
     double FloatWidth,
     double FloatHeight
@@ -131,6 +175,12 @@ public record PanelLayoutEntry(
 public record WindowLayoutState(List<PanelLayoutEntry> Panels);
 ```
 
+**`SizeRatio` definition:** A value between 0 and 1 representing this panel's share of the total non-splitter dock width (including Main). On save (for ALL columns including Main): `ratio = column.ActualWidth / totalNonSplitterWidth`. On load (for ALL columns including Main): `columnWidth = new GridLength(ratio * 1000, GridUnitType.Star)`. Main's column is treated identically to sub-panel columns — it has no special `"*"` after layout is loaded. On first launch (default layout, no saved file), Main starts as `1*` and sub-panels are added at `0.2 * mainCurrentStarValue` to keep proportions reasonable.
+
+**Case sensitivity:** All `WindowName` values are stored and matched as lowercase. `LoadLayout` compares using `StringComparison.OrdinalIgnoreCase` to tolerate any case in saved files.
+
+**Default `SizeRatio` for new panels:** When a panel appears for the first time (no saved layout entry), default its column to `0.2 * totalNonSplitterWidth` at the moment of creation. This gives it a reasonable initial size without collapsing Main.
+
 ---
 
 ## Docked Layout Model
@@ -138,66 +188,107 @@ public record WindowLayoutState(List<PanelLayoutEntry> Panels);
 The dock area is a single `Grid` inside `MainWindow`. No named zones.
 
 **Column arrangement:**
-- `Main` panel always occupies the leftmost `ColumnDefinition` with `Width="*"` (fills remaining space)
-- Each additional docked panel gets its own `ColumnDefinition` with a saved star-size (default `200`)
-- A `GridSplitter` `ColumnDefinition` (width `4`) is inserted between each panel column
+- `Main` panel always occupies the leftmost `ColumnDefinition` with `Width="*"` (fills remaining space). Created eagerly by `DockManager` constructor.
+- Each additional docked panel gets its own `ColumnDefinition` with a star-size derived from its saved `SizeRatio`
+- Each non-Main panel **owns** a paired splitter `ColumnDefinition` (fixed `Width=4`) that is inserted **immediately to its left**. The splitter is created with the panel and their column indices are permanently associated.
 
-**Adding a panel:**
+**Column layout example with Main + two panels:**
 ```
-Before: [Main(*) | Splitter(4)]
-After:  [Main(*) | Splitter(4) | NewPanel(200) | Splitter(4)]
+Col 0: Main (*)  | Col 1: Splitter (4) | Col 2: Thoughts (200*) | Col 3: Splitter (4) | Col 4: Room (200*)
 ```
+No splitter to the right of the rightmost panel.
 
-**Removing a docked panel** (hide or float): its column and adjacent splitter are collapsed (`Width = 0`, `Visibility = Collapsed`).
+**Adding a panel (rightmost):**
+- Append the panel's paired splitter column at the end of the grid
+- Append the panel column after it
 
-**Re-docking a floating panel**: its column is restored and the splitter made visible again.
+**Removing a docked panel** (hide or float):
+- Collapse the panel's column (`Width = new GridLength(0)`, `Visibility = Collapsed`)
+- Collapse the panel's **own paired splitter** (the one at the fixed column index recorded when this panel was added)
+- Each panel always collapses exactly its own paired splitter, regardless of whether neighboring panels are visible or collapsed
 
-**Size persistence**: on `GridSplitter` drag-complete, record each column's `ActualWidth` ratio relative to total width.
+**Re-docking a floating panel:**
+- Restore the panel's column (`Width` set back to saved star-size, `Visibility = Visible`)
+- Restore the panel's own paired splitter
+- Panel is restored to its original column index; column order does not change during float/dock cycles
+
+**Size persistence:** Subscribe to `GridSplitter.PointerReleased` as the drag-end signal (Avalonia 11 has no `DragCompleted` on `GridSplitter`). Guard: compare current `ActualWidth` of all non-splitter columns against the last saved in-memory snapshot; only update and persist if any value has changed.
 
 ---
 
 ## Floating Windows
 
-- "Float" button on `GameOutputPanel` title bar fires `FloatRequested`
-- `DockManager` handles `FloatRequested`: collapses panel's dock column, creates `FloatingWindow(panel)`, shows it at last known position (or a default offset from main window if first time)
-- `FloatingWindow` shows a "Dock" button; clicking fires `DockRequested`
-- `DockManager` handles `DockRequested`: closes `FloatingWindow`, restores panel's dock column
-- `FloatingWindow.Closed` (user clicks OS close button): panel is marked hidden, menu item unchecked
+- `GameOutputPanel.FloatRequested` (fired by Float button) → `DockManager.Float(panel)`
+- `DockManager.Float`: collapses panel's dock column + paired splitter, sets `panel.IsFloating = true`, creates `FloatingWindow(panel, dockAction: () => this.Dock(panel))`, shows at last known screen position (or 50px offset from main window top-left corner if floating for the first time)
+- Dock sequence: see `FloatingWindow` dock sequence above
+- Close/hide sequence: see `FloatingWindow` close/hide sequence above
+- `DockManager.Dock(panel)`: sets `panel.IsFloating = false`, restores panel column + paired splitter. `FloatingWindow` closes itself after calling `dockAction()`.
 
 ---
 
 ## Text Routing
 
-`MainWindow.OnPrintText` changes from:
-```csharp
-Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendOutput(text, color, bgcolor));
-```
-to:
+All text output in `MainWindow` is routed through `_dockManager.Route(...)`. The following call sites in `MainWindow.axaml.cs` are updated:
+
+**`OnPrintText`** (was: `AppendOutput(text, color, bgcolor)`, called via `Dispatcher.UIThread.Post`):
 ```csharp
 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
     _dockManager.Route(targetwindow, targetwindowstring, text, color, bgcolor));
 ```
 
+**`OnPrintError`** (was: `AppendOutput(text)`, called via `Dispatcher.UIThread.Post`):
+```csharp
+Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+    _dockManager.Route(Game.WindowTarget.Main, string.Empty, text, default, default));
+```
+
+**`ConnectButton_Click` status messages** (was: `AppendOutput("...")`). There are two call sites:
+1. The status message before `Task.Run` — direct call, already on UI thread:
+   ```csharp
+   _dockManager.Route(Game.WindowTarget.Main, string.Empty, "[Connecting as ...]", default, default);
+   ```
+2. The error message inside the `catch` handler's `Dispatcher.UIThread.Post` lambda:
+   ```csharp
+   Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+   {
+       _dockManager.Route(Game.WindowTarget.Main, string.Empty, $"[Connect error: {ex.Message}]", default, default);
+       ConnectButton.IsEnabled = true;
+   });
+   ```
+
+`AppendOutput` is removed from `MainWindow` entirely.
+
 `DockManager.Route` maps `WindowTarget` to panel name:
 
-| WindowTarget   | Panel name     |
-|---------------|----------------|
-| Main / Unknown | "main"        |
-| Combat        | "combat"       |
-| Portrait      | "portrait"     |
-| Inv           | "inv"          |
-| Familiar      | "familiar"     |
-| Thoughts      | "thoughts"     |
-| Logons        | "logons"       |
-| Death         | "death"        |
-| Room          | "room"         |
-| Log           | "log"          |
-| Raw           | "raw"          |
-| Debug         | "debug"        |
-| ActiveSpells  | "percwindow"   |
-| Other         | `targetName.ToLower()` |
+| WindowTarget    | Panel name             |
+|----------------|------------------------|
+| Main / Unknown  | "main"                |
+| Combat          | "combat"              |
+| Portrait        | "portrait"            |
+| Inv             | "inv"                 |
+| Familiar        | "familiar"            |
+| Thoughts        | "thoughts"            |
+| Logons          | "logons"              |
+| Death           | "death"               |
+| Room            | "room"                |
+| Log             | "log"                 |
+| Raw             | "raw"                 |
+| Debug           | "debug"               |
+| ActiveSpells    | "percwindow"          |
+| Other           | `targetName.ToLower()` (with edge-case handling above) |
 
-`Main`/`Unknown` always route to the Main panel (never create a new one for `Unknown`).
+---
+
+## `CommandInputController` Scroll Target
+
+`CommandInputController` currently receives `OutputScroll` (a `ScrollViewer` in `MainWindow`) for Ctrl+PageUp/Down scrolling. After this feature `OutputScroll` no longer exists in `MainWindow`. Instead:
+
+- `DockManager` exposes `public ScrollViewer MainScrollViewer { get; }` returning the Main panel's `OutputScroll`
+- `MainWindow` passes it to `CommandInputController`:
+  ```csharp
+  _controller = new CommandInputController(_game, CommandBox, _dockManager.MainScrollViewer);
+  ```
+- `MainScrollViewer` is available immediately since Main panel is created eagerly in `DockManager` constructor
 
 ---
 
@@ -212,16 +303,20 @@ Avalonia.Threading.Dispatcher.UIThread.Post(() =>
 **Save triggers:**
 - Main window closing (`Window.Closing` event)
 - Panel floated, docked, shown, or hidden
-- `GridSplitter` drag completed (`DragCompleted` event)
+- `GridSplitter.PointerReleased` (guarded — only save if in-memory column width snapshot has changed)
+- `FloatingWindow` `PositionChanged` / `SizeChanged`
 - `MenuLayout_SaveDefault` / `MenuLayout_SaveAs` stub handlers
 
-**Load:** `DockManager` constructor (or `MainWindow` constructor after `InitializeComponent`) calls `LoadDefaultLayout()`. If file missing or invalid, apply default: Main panel visible docked, all others hidden.
+**Load:** `DockManager` constructor calls `LoadDefaultLayout()` as its last step. If the file is missing or invalid JSON, apply default: Main panel visible and docked, all others hidden.
+
+**`MenuLayout_Load`:** `MainWindow.MenuLayout_Load` shows a file-picker dialog (stub — dialog implementation deferred). Once a path is selected, calls `_dockManager.LoadLayout(path)`.
 
 **Default layout** (no saved file):
 ```json
 {
   "Panels": [
-    { "WindowName": "main", "Visible": true, "IsFloating": false, "SizeRatio": 1.0, ... }
+    { "WindowName": "main", "Visible": true, "IsFloating": false, "SizeRatio": 1.0,
+      "FloatX": 0, "FloatY": 0, "FloatWidth": 0, "FloatHeight": 0 }
   ]
 }
 ```
@@ -231,16 +326,26 @@ Avalonia.Threading.Dispatcher.UIThread.Post(() =>
 ## MainWindow Changes
 
 **`MainWindow.axaml`:**
-- Replace the `ScrollViewer`/`SelectableTextBlock` output area with a `Grid` named `DockGrid`
-- `DockGrid` starts with one `ColumnDefinition Width="*"` for the Main panel (added programmatically by `DockManager`)
+- Remove `ScrollViewer` (OutputScroll) and `SelectableTextBlock` (OutputText) from the layout
+- Replace with an empty `Grid` named `DockGrid`; all columns are added programmatically by `DockManager`
+- Add `x:Name="_WindowsMenu"` to the `Windows` top-level `MenuItem`
 
 **`MainWindow.axaml.cs`:**
 - Add `private DockManager _dockManager;`
-- Constructor: `_dockManager = new DockManager(DockGrid, _WindowsMenu);` (after `InitializeComponent`)
-- `OnPrintText`: delegate to `_dockManager.Route(...)` instead of `AppendOutput`
-- Remove `AppendOutput` method (moved to `GameOutputPanel`)
-- Wire `MenuLayout_SaveDefault`, `MenuLayout_SaveAs`, `MenuLayout_LoadDefault`, `MenuLayout_Load` to `_dockManager` methods
-- Add `_WindowsMenu` field pointing to the `Windows` top-level `MenuItem` (accessed via `x:Name` in AXAML)
+- Constructor order (after `InitializeComponent()`):
+  1. `_dockManager = new DockManager(DockGrid, _WindowsMenu);` — creates Main panel eagerly, loads default layout
+  2. `_controller = new CommandInputController(_game, CommandBox, _dockManager.MainScrollViewer);`
+  3. Remaining event subscriptions and `UpdateWindowTitle()` (unchanged)
+- `OnPrintText`: delegate to `_dockManager.Route(...)` (see Text Routing section)
+- `OnPrintError`: delegate to `_dockManager.Route(Main, ...)` (see Text Routing section)
+- `ConnectButton_Click`: replace `AppendOutput(...)` calls with `_dockManager.Route(Main, ...)` (see Text Routing section)
+- Remove `AppendOutput` method entirely
+- Wire layout menu stubs:
+  - `MenuLayout_SaveDefault` → `_dockManager.SaveDefaultLayout()`
+  - `MenuLayout_SaveAs` → show save-file dialog (stub), then `_dockManager.SaveLayout(path)`
+  - `MenuLayout_LoadDefault` → `_dockManager.LoadDefaultLayout()`
+  - `MenuLayout_Load` → show open-file dialog (stub), then `_dockManager.LoadLayout(path)`
+  - `MenuLayout_SaveSizedDefault`, `MenuLayout_Basic`, `MenuLayout_MagicPanels` → no-op stubs (out of scope)
 
 ---
 
@@ -248,11 +353,11 @@ Avalonia.Threading.Dispatcher.UIThread.Post(() =>
 
 | File | Change |
 |------|--------|
-| `Desktop/GameOutputPanel.axaml` | New UserControl — title bar + scroll + text block |
-| `Desktop/GameOutputPanel.axaml.cs` | New code-behind — `AppendText`, float/close events |
-| `Desktop/FloatingWindow.axaml` | New Window — thin host for floating `GameOutputPanel` |
-| `Desktop/FloatingWindow.axaml.cs` | New code-behind — dock button, position/size tracking |
-| `Desktop/DockManager.cs` | New class — routing, grid management, menu population, layout I/O |
-| `Desktop/WindowLayoutState.cs` | New record — layout serialization model |
-| `Desktop/MainWindow.axaml` | Replace output area with `DockGrid`; name `Windows` menu item |
-| `Desktop/MainWindow.axaml.cs` | Add `DockManager`, route `OnPrintText`, wire layout menu stubs |
+| `Desktop/GameOutputPanel.axaml` | New UserControl — title bar (Float/Dock/close buttons) + scroll + text block |
+| `Desktop/GameOutputPanel.axaml.cs` | New code-behind — `AppendText`, `IsFloating`, `IsOutputHidden`, events, `OutputScroll` |
+| `Desktop/FloatingWindow.axaml` | New Window — minimal AXAML (no content body defined in markup; `Content` is assigned in code-behind as `Content = panel`) |
+| `Desktop/FloatingWindow.axaml.cs` | New code-behind — `dockAction` closure, suppress-hide flag, position/size tracking |
+| `Desktop/DockManager.cs` | New class — routing, grid management, menu, layout I/O, `MainScrollViewer` |
+| `Desktop/WindowLayoutState.cs` | New records — `PanelLayoutEntry`, `WindowLayoutState` |
+| `Desktop/MainWindow.axaml` | Replace output area with empty `DockGrid`; name `Windows` menu item |
+| `Desktop/MainWindow.axaml.cs` | Add `DockManager`, update constructor order, update all `AppendOutput` call sites, remove `AppendOutput`, wire layout menu stubs |
