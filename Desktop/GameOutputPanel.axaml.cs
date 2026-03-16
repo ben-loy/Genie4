@@ -39,6 +39,8 @@ public partial class GameOutputPanel : UserControl
     // Expose inner ScrollViewer so DockManager can hand it to CommandInputController.
     public ScrollViewer OutputScroll => OutputScrollViewer;
 
+    public void ClearOutput() => OutputText.Inlines?.Clear();
+
     public event EventHandler? FloatRequested;
     public event EventHandler? DockRequested;
     public event EventHandler? CloseRequested;
@@ -61,6 +63,11 @@ public partial class GameOutputPanel : UserControl
     public void AppendText(string text, Color fg, Color bg)
     {
         if (IsOutputHidden) return;
+
+        // Internal control tokens — never display; @suspend@ also clears the panel.
+        var trimmed = text.Trim();
+        if (trimmed == "@suspend@") { ClearOutput(); return; }
+        if (trimmed == "@resume@")  { return; }
 
         IBrush? fgBrush = ToBrush(fg);
         IBrush? bgBrush = ToBrush(bg);

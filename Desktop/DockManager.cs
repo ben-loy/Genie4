@@ -122,6 +122,40 @@ public class DockManager
     public ScrollViewer MainScrollViewer => _panels["main"].OutputScroll;
 
     /// <summary>
+    /// Clears the output text of the specified panel.
+    /// Defaults to "main" if sWindow is null or whitespace.
+    /// </summary>
+    public void ClearPanel(string sWindow)
+    {
+        var name = string.IsNullOrWhiteSpace(sWindow) ? "main" : sWindow.ToLower();
+        if (_panels.TryGetValue(name, out var panel))
+            panel.ClearOutput();
+    }
+
+    /// <summary>
+    /// Ensures the panel is visible, creating it if necessary.
+    /// Does nothing if name is null or whitespace.
+    /// </summary>
+    public void EnsureVisible(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var panel = GetOrCreate(name.ToLower());
+        if (panel.IsOutputHidden)
+            SetVisible(panel, true);
+    }
+
+    /// <summary>
+    /// Registers a named panel (adds it to the Windows menu) without showing it.
+    /// Use for EventStreamWindow — the panel becomes available for the user to open,
+    /// but is not auto-shown until they choose to open it.
+    /// </summary>
+    public void RegisterPanel(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        GetOrCreate(name.ToLower());   // creates panel + menu item, stays hidden
+    }
+
+    /// <summary>
     /// Routes a game text event to the correct panel (creating it if needed).
     /// Must be called on the UI thread.
     /// </summary>
@@ -141,6 +175,16 @@ public class DockManager
         else
         {
             panelName = "main";
+        }
+
+        // For named sub-windows (WindowTarget.Other) that have never been opened,
+        // redirect text to main rather than auto-showing the window.
+        if (target == Game.WindowTarget.Other
+            && !_everMadeVisible.Contains(panelName))
+        {
+            _panels.TryGetValue("main", out var mainPanel);
+            (mainPanel ?? GetOrCreate("main")).AppendText(text, fg, bg);
+            return;
         }
 
         var panel = GetOrCreate(panelName);
