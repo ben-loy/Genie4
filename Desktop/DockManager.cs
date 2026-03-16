@@ -445,7 +445,6 @@ public class DockManager
         {
             const double totalStars = 1000;
             double stars = sizeRatio * totalStars;
-            bool isMain  = string.Equals(id, "main", StringComparison.OrdinalIgnoreCase);
             if (stars <= 0) stars = 200;
 
             var newWidth = new GridLength(stars, GridUnitType.Star);
