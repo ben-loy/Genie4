@@ -73,6 +73,7 @@ public class DockManager
 
         GetOrCreate("main");   // Main panel always exists
         LoadDefaultLayout();   // Apply saved XML state (or default if file missing)
+        SaveDefaultLayout();   // Write layout.xml on first launch if it didn't exist
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
