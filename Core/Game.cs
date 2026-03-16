@@ -391,6 +391,19 @@ namespace GenieClient.Genie
             }
         }
 
+        /// <summary>
+        /// The server-assigned game name (e.g. "DragonRealms"), set from XML during login.
+        /// Equivalent to VariableList["gamename"]. Empty string until the server sends it.
+        /// </summary>
+        public string GameName => m_sGameName;
+
+        /// <summary>
+        /// The in-game character name from VariableList["charactername"].
+        /// Set at connect time and may be updated by the server during the session.
+        /// </summary>
+        public string CharacterName =>
+            m_oGlobals?.VariableList["charactername"]?.ToString() ?? string.Empty;
+
         public void Connect(string sGenieKey, string sAccountName, string sPassword, string sCharacter, string sGame)
         {
             m_sAccountName = sAccountName;
