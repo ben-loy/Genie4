@@ -145,6 +145,17 @@ public class DockManager
     }
 
     /// <summary>
+    /// Registers a named panel (adds it to the Windows menu) without showing it.
+    /// Use for EventStreamWindow — the panel becomes available for the user to open,
+    /// but is not auto-shown until they choose to open it.
+    /// </summary>
+    public void RegisterPanel(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        GetOrCreate(name.ToLower());   // creates panel + menu item, stays hidden
+    }
+
+    /// <summary>
     /// Routes a game text event to the correct panel (creating it if needed).
     /// Must be called on the UI thread.
     /// </summary>

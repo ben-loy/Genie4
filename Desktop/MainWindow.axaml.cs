@@ -229,7 +229,9 @@ public partial class MainWindow : Window
         {
             var name = sID?.ToString() ?? string.Empty;
             if (string.Equals(name, "main", StringComparison.OrdinalIgnoreCase)) return;
-            Dispatcher.UIThread.Post(() => _dockManager.EnsureVisible(name));
+            // Register panel so it appears in the Windows menu, but don't auto-show it.
+            // The user opens it manually; once opened, it stays in their layout.
+            Dispatcher.UIThread.Post(() => _dockManager.RegisterPanel(name));
         };
 
         // Text line from server — run through triggers and notify scripts
