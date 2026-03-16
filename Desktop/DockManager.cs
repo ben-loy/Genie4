@@ -446,6 +446,13 @@ public class DockManager
         bool   visible   = cfg.GetValue(elemPath, "Visible",   true);
         bool   floating  = cfg.GetValue(elemPath, "IsFloating", false);
 
+        // Main panel must always be visible, even if a corrupt layout file says otherwise.
+        if (string.Equals(id, "main", StringComparison.OrdinalIgnoreCase))
+        {
+            visible  = true;
+            floating = false;
+        }
+
         double floatLeft = cfg.GetValue(elemPath, "FloatLeft",   0.0);
         double floatTop  = cfg.GetValue(elemPath, "FloatTop",    0.0);
         double floatW    = cfg.GetValue(elemPath, "FloatWidth",  0.0);
