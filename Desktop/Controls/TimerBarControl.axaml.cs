@@ -60,7 +60,7 @@ public partial class TimerBarControl : UserControl
         else
         {
             _fillColumn.Width  = new GridLength(_remaining,          GridUnitType.Star);
-            _emptyColumn.Width = new GridLength(_total - _remaining, GridUnitType.Star);
+            _emptyColumn.Width = new GridLength(Math.Max(0, _total - _remaining), GridUnitType.Star);
             TimerLabel.Text    = _remaining.ToString();
             ApplyBrushes();
         }
