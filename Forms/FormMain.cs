@@ -6,12 +6,12 @@ using System.Drawing;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Speech.Synthesis;
 using System.Text;
-// Note: using System.Speech.Synthesis was removed — no SpeechSynthesizer usage exists in this file.
-// TTS is not supported on Mac/Linux (net48/Mono). See docs/MONO-PORTING.md.
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Accessibility;
 using GenieClient.Forms;
 using GenieClient.Genie;
 using Microsoft.VisualBasic;
@@ -211,7 +211,7 @@ namespace GenieClient
                     if (Path.GetExtension(parameters[0]).ToUpper() == ".SAL")
                     {
                         string pathToSAL = parameters[0];
-                        character = Path.GetFileNameWithoutExtension(pathToSAL).Split('(')[0].Split(' ')[0].Trim(); //in case the file was auto-renamed, split off everything before a peren and/or space;
+                        character = Path.GetFileNameWithoutExtension(pathToSAL).Split("(")[0].Split(" ")[0].Trim(); //in case the file was auto-renamed, split off everything before a peren and/or space;
                         using (StreamReader reader = new StreamReader(pathToSAL))
                         {
                             List<string> salEntries = new List<string>();
@@ -224,7 +224,7 @@ namespace GenieClient
                     }
                     else
                     {
-                        parameters = parameters[0].Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                        parameters = parameters[0].Split(@"/", StringSplitOptions.RemoveEmptyEntries);
                     }
                 }
                 foreach (string parameter in parameters)
@@ -235,7 +235,7 @@ namespace GenieClient
                     string value = parameter.Substring(1);
                     foreach (char delimiter in "|:;-~=")
                     {
-                        if (parameter.Contains(delimiter.ToString()))
+                        if (parameter.Contains(delimiter))
                         {
                             value = parameter.Split(delimiter)[1];
                             param = parameter.Split(delimiter)[0];
@@ -386,9 +386,7 @@ namespace GenieClient
                     _m_oGame.EventDataRecieveEnd -= Simutronics_EventEndUpdate;
                     GenieError.EventGenieError -= HandleGenieException;
                     GenieError.EventGenieLegacyPluginError -= HandleLegacyPluginException;
-#if WINDOWS
                     GenieError.EventGeniePluginError -= HandlePluginException;
-#endif
                     _m_oGame.EventTriggerParse -= Game_EventTriggerParse;
                     _m_oGame.EventStatusBarUpdate -= Game_EventStatusBarUpdate;
                     _m_oGame.EventClearSpellTime -= Game_EventClearSpellTime;
@@ -411,9 +409,7 @@ namespace GenieClient
                     _m_oGame.EventAddImage += AddImage;
                     _m_oGame.EventDataRecieveEnd += Simutronics_EventEndUpdate;
                     GenieError.EventGenieError += HandleGenieException;
-#if WINDOWS
                     GenieError.EventGeniePluginError += HandlePluginException;
-#endif
                     _m_oGame.EventTriggerParse += Game_EventTriggerParse;
                     _m_oGame.EventStatusBarUpdate += Game_EventStatusBarUpdate;
                     _m_oGame.EventClearSpellTime += Game_EventClearSpellTime;
@@ -746,10 +742,8 @@ namespace GenieClient
                         LoadLegacyPlugin(legacyPlugin, loadingPlugin.AssemblyPath, loadingPlugin.Key);
                         break;
                     case PluginServices.Interfaces.Modern:
-#if WINDOWS
                         GeniePlugin.Plugins.IPlugin modernPlugin = (GeniePlugin.Plugins.IPlugin)PluginServices.CreateInstance(loadingPlugin);
                         LoadPlugin(modernPlugin, loadingPlugin.AssemblyPath, loadingPlugin.Key);
-#endif
                         break;
                     default:
                         break;
@@ -793,7 +787,6 @@ namespace GenieClient
             Application.DoEvents();
         }
 
-#if WINDOWS
         private void LoadPlugin(GeniePlugin.Plugins.IPlugin Plugin, string AssemblyPath, string Key)
         {
             if (m_oPluginNameToFile.ContainsKey(Plugin.Name))
@@ -826,7 +819,6 @@ namespace GenieClient
             }
             Application.DoEvents();
         }
-#endif
 
         private void LoadPlugin(string filename)
         {
@@ -903,7 +895,6 @@ namespace GenieClient
                         (oPlugin as GeniePlugin.Interfaces.IPlugin).Enabled = value;
                     }
                 }
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     if (((oPlugin as GeniePlugin.Plugins.IPlugin).Name ?? "") == (name ?? ""))
@@ -911,7 +902,6 @@ namespace GenieClient
                         (oPlugin as GeniePlugin.Plugins.IPlugin).Enabled = value;
                     }
                 }
-#endif
             }
         }
 
@@ -994,7 +984,6 @@ namespace GenieClient
                         RemoveIndex = I;
                     }
                 }
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     if (((oPlugin as GeniePlugin.Plugins.IPlugin).Name ?? "") == (name ?? ""))
@@ -1003,7 +992,6 @@ namespace GenieClient
                         RemoveIndex = I;
                     }
                 }
-#endif
                 I += 1;
             }
 
@@ -1036,10 +1024,8 @@ namespace GenieClient
             {
                 if (oPlugin is GeniePlugin.Interfaces.IPlugin)
                     (oPlugin as GeniePlugin.Interfaces.IPlugin).ParentClosing();
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                     (oPlugin as GeniePlugin.Plugins.IPlugin).ParentClosing();
-#endif
             }
             m_oGlobals.PluginList.Clear();
             m_oPlugins.Clear();
@@ -1057,13 +1043,11 @@ namespace GenieClient
                         AppendText(Conversions.ToString(Constants.vbTab + (oPlugin as GeniePlugin.Interfaces.IPlugin).Name + " " + (oPlugin as GeniePlugin.Interfaces.IPlugin).Version + " - " + Interaction.IIf((oPlugin as GeniePlugin.Interfaces.IPlugin).Enabled, "Enabled", "Disabled") + System.Environment.NewLine));
                         AppendText(Constants.vbTab + Constants.vbTab + m_oPluginNameToFile[(oPlugin as GeniePlugin.Interfaces.IPlugin).Name] + System.Environment.NewLine);
                     }
-#if WINDOWS
                     else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                     {
                         AppendText(Conversions.ToString(Constants.vbTab + (oPlugin as GeniePlugin.Plugins.IPlugin).Name + " " + (oPlugin as GeniePlugin.Plugins.IPlugin).Version + " - " + Interaction.IIf((oPlugin as GeniePlugin.Plugins.IPlugin).Enabled, "Enabled", "Disabled") + System.Environment.NewLine));
                         AppendText(Constants.vbTab + Constants.vbTab + m_oPluginNameToFile[(oPlugin as GeniePlugin.Plugins.IPlugin).Name] + System.Environment.NewLine);
                     }
-#endif
                 }
             }
 
@@ -1089,7 +1073,6 @@ namespace GenieClient
             }
         }
 
-#if WINDOWS
         private void VerifyAndLoadPlugin(GeniePlugin.Plugins.IPlugin plugin, string pluginkey)
         {
             if (!Information.IsNothing(plugin))
@@ -1108,7 +1091,6 @@ namespace GenieClient
                 }
             }
         }
-#endif
         private void Plugin_EventEchoText(string sText, Color oColor, Color oBgColor)
         {
             Genie.Game.WindowTarget argoTargetWindow = Genie.Game.WindowTarget.Main;
@@ -1246,13 +1228,11 @@ namespace GenieClient
                         pluginDialogItem.Name = "ToolStripMenuItemPlugin" + (oPlugin as GeniePlugin.Interfaces.IPlugin).Name;
                         pluginDialogItem.Text = (oPlugin as GeniePlugin.Interfaces.IPlugin).Name;
                     }
-#if WINDOWS
                     else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                     {
                         pluginDialogItem.Name = "ToolStripMenuItemPlugin" + (oPlugin as GeniePlugin.Plugins.IPlugin).Name;
                         pluginDialogItem.Text = (oPlugin as GeniePlugin.Plugins.IPlugin).Name;
                     }
-#endif
                     pluginDialogItem.Tag = oPlugin;
                     // ti.Checked = oPlugin.Enabled
                     pluginDialogItem.Click += PluginMenuItem_Click;
@@ -1343,7 +1323,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     try
@@ -1359,7 +1338,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#endif
             }
         }
 
@@ -1413,7 +1391,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     try
@@ -1431,7 +1408,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#endif
             }
 
             return sText;
@@ -1495,8 +1471,7 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#if WINDOWS
-                else if (oPlugin is GeniePlugin.Plugins.IPlugin)
+                else if (oPlugin is GeniePlugin.Interfaces.IPlugin)
                 {
                     try
                     {
@@ -1511,7 +1486,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#endif
             }
         }
 
@@ -1551,7 +1525,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#if WINDOWS
                 else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     try
@@ -1567,7 +1540,6 @@ namespace GenieClient
                         /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                     }
                 }
-#endif
             }
         }
 
@@ -1609,7 +1581,6 @@ namespace GenieClient
                             /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                         }
                     }
-#if WINDOWS
                     else if (oPlugin is GeniePlugin.Plugins.IPlugin)
                     {
                         try
@@ -1625,7 +1596,6 @@ namespace GenieClient
                             /* TODO ERROR: Skipped ElseDirectiveTrivia *//* TODO ERROR: Skipped DisabledTextTrivia *//* TODO ERROR: Skipped EndIfDirectiveTrivia */
                         }
                     }
-#endif
                 }
             }
 
@@ -3351,7 +3321,7 @@ namespace GenieClient
                             sTemp = LocalDirectory.Path + @"\Scripts\" + sTemp;
                         }
 
-                        Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + sTemp + "\"", UseShellExecute = true });
+                        Interaction.Shell("\"" + m_oGlobals.Config.sEditor + "\" \"" + sTemp, AppWinStyle.NormalFocus, false);
                     }
                 }
             }
@@ -6079,7 +6049,6 @@ namespace GenieClient
             }
         }
 
-#if WINDOWS
         private void HandlePluginException(GeniePlugin.Plugins.IPlugin plugin, string section, Exception ex)
         {
             if (InvokeRequired == true)
@@ -6092,7 +6061,6 @@ namespace GenieClient
                 ShowDialogPluginException(plugin, section, ex);
             }
         }
-#endif
 
         private void ShowDialogAutoMapperException(string section, Exception ex)
         {
@@ -6146,7 +6114,6 @@ namespace GenieClient
             }
         }
 
-#if WINDOWS
         private void ShowDialogPluginException(GeniePlugin.Plugins.IPlugin plugin, string section, Exception ex)
         {
             if (My.MyProject.Forms.DialogException.Visible == false)
@@ -6179,7 +6146,6 @@ namespace GenieClient
                 My.MyProject.Forms.DialogException.Show(this, sbDetails.ToString(), "There was an unexpected error in the plugin " + sPluginName + ". This may be due to a programming bug.", "The plugin has been disabled.", "Please report the details of this error to the plugin author. You may also want to make sure you are running the latest version of this plugin.");
             }
         }
-#endif
 
         private void Game_EventTriggerParse(string sText)
         {
@@ -7775,8 +7741,7 @@ namespace GenieClient
         {
             if (File.Exists(Conversions.ToString(Conversions.ToString(LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"]) + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log")))
             {
-                string logPath = LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"] + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
-                Process.Start(new ProcessStartInfo { FileName = m_oGlobals.Config.sEditor, Arguments = "\"" + logPath + "\"", UseShellExecute = true });
+                Interaction.Shell(Conversions.ToString(Conversions.ToString("\"" + m_oGlobals.Config.sEditor + "\" \"" + LocalDirectory.Path + @"\Logs\" + m_oGlobals.VariableList["charactername"]) + m_oGlobals.VariableList["game"] + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log\""), AppWinStyle.NormalFocus, false);
             }
             else
             {
@@ -7831,9 +7796,7 @@ namespace GenieClient
 
         private void FlashWindow()
         {
-#if WINDOWS
             NativeMethods.FlashWindow(Handle, true);
-#endif
         }
 
         private void ShowWindowToolStripMenuItem_Click(object sender, EventArgs e)
@@ -8368,9 +8331,7 @@ namespace GenieClient
 
         private void OpenUserDataDirectoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + LocalDirectory.Path + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + LocalDirectory.Path, AppWinStyle.NormalFocus, false);
         }
 
         private void SaveSizedDefaultLayoutToolStripMenuItem_Click(object sender, EventArgs e)
@@ -8656,44 +8617,32 @@ namespace GenieClient
 
         private void genieToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + LocalDirectory.Path + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + LocalDirectory.Path, AppWinStyle.NormalFocus, false);
         }
 
         private void mapsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.MapDir + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + m_oGlobals.Config.MapDir, AppWinStyle.NormalFocus, false);
         }
 
         private void pluginsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.PluginDir + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + m_oGlobals.Config.PluginDir, AppWinStyle.NormalFocus, false);
         }
 
         private void scriptsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.ScriptDir + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + m_oGlobals.Config.ScriptDir, AppWinStyle.NormalFocus, false);
         }
 
         private void logsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.sLogDir + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + m_oGlobals.Config.sLogDir, AppWinStyle.NormalFocus, false);
         }
 
         private void artToolStripMenuItem_Click(object sender, EventArgs e)
         {
-#if WINDOWS
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + m_oGlobals.Config.ArtDir + "\"", UseShellExecute = true });
-#endif
+            Interaction.Shell("explorer.exe " + m_oGlobals.Config.ArtDir, AppWinStyle.NormalFocus, false);
         }
 
         private void toolStripMenuItemClassicConnect_Click(global::System.Object sender, global::System.EventArgs e)

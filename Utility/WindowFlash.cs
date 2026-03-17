@@ -13,11 +13,7 @@ namespace GenieClient
         {
         }
 
-#if WINDOWS
         [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi)]
         public static extern bool FlashWindow(IntPtr hwnd, bool bInvert);
-#else
-        public static bool FlashWindow(IntPtr hwnd, bool bInvert) => false;
-#endif
     }
 }

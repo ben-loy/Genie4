@@ -64,11 +64,7 @@ namespace GenieClient.Genie
         public bool AutoUpdate { get; set; } = false;
         public bool AutoUpdateLamp { get; set; } = true;
 
-#if !DESKTOP
         public string sConnectString = "FE:GENIE /VERSION:" + My.MyProject.Application.Info.Version.ToString() + " /P:WIN_XP /XML";
-#else
-        public string sConnectString = "FE:GENIE /VERSION:" + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0") + " /P:WIN_XP /XML";
-#endif
         public int[] iPickerColors = new int[17];
         public string RubyPath { get; set; } = @"C:\ruby4lich5\bin\ruby.exe";
         public string CmdPath { get; set; } = @"C:\Windows\System32\cmd.exe";
@@ -383,13 +379,8 @@ namespace GenieClient.Genie
             }
         }
 
-#if !DESKTOP
         public Font m_oMonoFont = new Font("Courier New", 9, FontStyle.Regular);
         public Font m_oInputFont = new Font("Courier New", 9, FontStyle.Regular);
-#else
-        public Font? m_oMonoFont = null; // GDI+ not supported cross-platform; fonts handled by Avalonia
-        public Font? m_oInputFont = null;
-#endif
 
         public event ConfigChangedEventHandler ConfigChanged;
 
@@ -415,31 +406,33 @@ namespace GenieClient.Genie
             UpdateMapperScripts
         }
 
-#if !DESKTOP
         public Font MonoFont
         {
-            get { return m_oMonoFont; }
-            set { m_oMonoFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont); }
+            get
+            {
+                return m_oMonoFont;
+            }
+
+            set
+            {
+                m_oMonoFont = value;
+                ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont);
+            }
         }
 
         public Font InputFont
         {
-            get { return m_oInputFont; }
-            set { m_oInputFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont); }
-        }
-#else
-        public Font? MonoFont
-        {
-            get { return m_oMonoFont; }
-            set { m_oMonoFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.MonoFont); }
-        }
+            get
+            {
+                return m_oInputFont;
+            }
 
-        public Font? InputFont
-        {
-            get { return m_oInputFont; }
-            set { m_oInputFont = value; ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont); }
+            set
+            {
+                m_oInputFont = value;
+                ConfigChanged?.Invoke(ConfigFieldUpdated.InputFont);
+            }
         }
-#endif
 
         public bool Save(string sFileName = "settings.cfg")
         {

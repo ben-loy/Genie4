@@ -93,12 +93,10 @@ namespace GenieClient.Genie
             }
         }
 
-        private void HandleGenieException(string section, string message, string description = null)
+        private void HandleGenieException(string section, string message, string description = null) // Pass it up
         {
-            // Disable auto-logging so the log path stops being attempted after a write failure.
-            // Do NOT call GenieError.Error here — we are already inside an EventGenieError handler
-            // and doing so would cause infinite recursion.
             Config.bAutoLog = false;
+            GenieError.Error(section, message, description);
         }
 
         public void Config_ConfigChanged(Config.ConfigFieldUpdated oField)
@@ -881,13 +879,8 @@ namespace GenieClient.Genie
                 Add("poisoned", "0", VariableType.Reserved);
                 Add("diseased", "0", VariableType.Reserved);
                 Add("connected", "0", VariableType.Reserved);
-#if !DESKTOP
                 Add("client", My.MyProject.Application.Info.ProductName.ToString(), VariableType.Reserved);
                 Add("version", My.MyProject.Application.Info.Version.ToString(), VariableType.Reserved);
-#else
-                Add("client", System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "Genie", VariableType.Reserved);
-                Add("version", System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0", VariableType.Reserved);
-#endif
                 Add("time", "@time@", VariableType.Reserved);
                 Add("time24", "@time24@", VariableType.Reserved);
                 Add("militarytime", "@militarytime@", VariableType.Reserved);

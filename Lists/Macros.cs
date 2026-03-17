@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
-#if !DESKTOP
 using System.Windows.Forms;
-#endif
 using Microsoft.VisualBasic;
 using Microsoft.VisualBasic.CompilerServices;
 
@@ -24,7 +22,6 @@ namespace GenieClient.Genie
 
         public bool Add(string sKey, string sMacro)
         {
-#if !DESKTOP
             Keys oKey;
             oKey = KeyCode.StringToKey(sKey);
             if (oKey == System.Windows.Forms.Keys.None)
@@ -45,14 +42,10 @@ namespace GenieClient.Genie
 
                 return true;
             }
-#else
-            return false; // Stub: macros not supported on Desktop
-#endif
         }
 
         public int Remove(string sKey)
         {
-#if !DESKTOP
             Keys oKey;
             oKey = KeyCode.StringToKey(sKey);
             if (oKey == System.Windows.Forms.Keys.None)
@@ -68,9 +61,6 @@ namespace GenieClient.Genie
             {
                 return 0;
             }
-#else
-            return -1; // Stub: macros not supported on Desktop
-#endif
         }
 
         private string m_FileName = LocalDirectory.Path + @"\Config\" + "macros.cfg";
@@ -118,7 +108,6 @@ namespace GenieClient.Genie
 
         private void LoadRow(string sText)
         {
-#if !DESKTOP
             var oArgs = Utility.ParseArgs(sText);
             if (oArgs.Count == 3)
             {
@@ -130,7 +119,6 @@ namespace GenieClient.Genie
                     Add(argsKey, oArgs[2].ToString());
                 }
             }
-#endif
         }
 
         public bool Save(string sFileName = null)
@@ -158,11 +146,7 @@ namespace GenieClient.Genie
                     {
                         var oStreamWriter = new StreamWriter(sFileName, false);
                         foreach (object key in base.Keys)
-#if !DESKTOP
                             oStreamWriter.WriteLine("#macro {" + ((Keys)Conversions.ToInteger(key)).ToString() + "} {" + ((Macro)base[key]).sAction + "}");
-#else
-                            oStreamWriter.WriteLine("#macro {" + Conversions.ToInteger(key).ToString() + "} {" + ((Macro)base[key]).sAction + "}");
-#endif
                         oStreamWriter.Close();
                     }
                     finally

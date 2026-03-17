@@ -802,7 +802,6 @@ namespace GenieClient
             string LText = e.LinkText;
             if (!LText.StartsWith("http"))
             {
-#if WINDOWS
                 string Llink = srcText.Substring(e.LinkStart + e.LinkLength + 1, e.LinkLength);
                 if (Llink != LText)
                 {
@@ -813,11 +812,6 @@ namespace GenieClient
                 {
                     LText = "#" + e.LinkText;
                 }
-#else
-                // LinkClickedEventArgs.LinkStart and LinkLength do not exist in .NET Framework 4.8.
-                // On net48/Mono, custom link text extraction is unavailable; fall back to prepending '#' to the raw link text.
-                LText = "#" + e.LinkText;
-#endif
             }
             EventLinkClicked?.Invoke(LText, e);
         }

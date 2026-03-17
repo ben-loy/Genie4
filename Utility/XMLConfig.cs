@@ -13,7 +13,6 @@ namespace GenieClient.Genie
         public XMLConfig()
         {
             xmlDoc = new XmlDocument();
-            xmlDoc.XmlResolver = null;
         }
 
         public string ConfigFile
@@ -42,7 +41,6 @@ namespace GenieClient.Genie
             if (xmlDoc is null)
             {
                 xmlDoc = new XmlDocument();
-                xmlDoc.XmlResolver = null;
             }
 
             if (filename.Length > 0 && !(xmlDoc is null))
@@ -71,7 +69,6 @@ namespace GenieClient.Genie
             if (xmlDoc is null)
             {
                 xmlDoc = new XmlDocument();
-                xmlDoc.XmlResolver = null;
             }
 
             if (xmldata.Length > 0 && !(xmlDoc is null))

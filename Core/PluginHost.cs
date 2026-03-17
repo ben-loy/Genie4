@@ -5,11 +5,7 @@ using Microsoft.VisualBasic.CompilerServices;
 
 namespace GenieClient
 {
-#if WINDOWS
     public class PluginHost : GeniePlugin.Plugins.IHost
-#else
-    public class PluginHost
-#endif
     {
         public event EventEchoTextEventHandler EventEchoText;
 

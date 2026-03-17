@@ -434,11 +434,7 @@ namespace GenieClient.Genie
                 PrintText(Utility.GetTimeStamp() + " Connection closed.");
                 if (ExitOnDisconnect)
                 {
-#if !DESKTOP
                     System.Windows.Forms.Application.Exit();
-#else
-                    Environment.Exit(0);
-#endif
                 }
                 else
                 {

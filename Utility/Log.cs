@@ -27,7 +27,6 @@ namespace GenieClient.Genie
                         sDirectory = Path.Combine(LocalDirectory.Path, LogDirectory);
                     }
 
-                    Directory.CreateDirectory(sDirectory);
                     string sFileName = Path.Combine(sDirectory, sCharacterName + sInstanceName + "_" + DateTime.Now.ToString("yyyy-MM-dd") + ".log");
                     if (File.Exists(sFileName) == false)
                     {
@@ -74,7 +73,6 @@ namespace GenieClient.Genie
                         sFileName = Path.Combine(sDirectory, sFileName);
                     }
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(sFileName));
                     var oStreamWriter = new StreamWriter(sFileName, true);
                     oStreamWriter.WriteLine(sText);
                     oStreamWriter.Close();
