@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GenieClient.Desktop.Controls"
         x:Class="GenieClient.Desktop.MainWindow"
         Title="Genie"
         Width="900" Height="600"
@@ -159,12 +160,63 @@
       <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
     </StackPanel>
 
-    <!-- Command input -->
+    <!-- Vitals row — very bottom (declared first Bottom-docked) -->
+    <!-- NOTE: FillColor and EmptyColor are plain CLR IBrush properties (not AvaloniaProperty),
+         so they cannot be set from AXAML hex strings. Colors are set from code-behind
+         in InitializeVitalColors() after InitializeComponent(). -->
+    <Grid DockPanel.Dock="Bottom" x:Name="VitalsRow" Height="22" Background="#000000">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <controls:VitalBarControl Grid.Column="0" x:Name="VitalsHealth"  BarText="Health"/>
+      <controls:VitalBarControl Grid.Column="1" x:Name="VitalsMana"    BarText="Mana"/>
+      <controls:VitalBarControl Grid.Column="2" x:Name="VitalsConc"    BarText="Concentration"/>
+      <controls:VitalBarControl Grid.Column="3" x:Name="VitalsFatigue" BarText="Fatigue"/>
+      <controls:VitalBarControl Grid.Column="4" x:Name="VitalsSpirit"  BarText="Spirit"/>
+    </Grid>
+
+    <!-- Command input — above vitals (declared second Bottom-docked) -->
     <TextBox DockPanel.Dock="Bottom"
              x:Name="CommandBox"
              Margin="6,0,6,6"
              KeyDown="CommandBox_KeyDown"
              Watermark="Enter command..." />
+
+    <!-- Status row — above command input (declared third Bottom-docked) -->
+    <Grid DockPanel.Dock="Bottom" x:Name="StatusRow" Height="22" Background="#111111">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="72"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <!-- RT countdown bar -->
+      <Border Grid.Column="0" BorderThickness="0,0,1,0" BorderBrush="#2A2A2A">
+        <controls:TimerBarControl x:Name="RtBar"/>
+      </Border>
+      <!-- Left hand -->
+      <Border Grid.Column="1" BorderThickness="0,0,1,0" BorderBrush="#2A2A2A" Padding="4,0">
+        <TextBlock x:Name="LabelLH" VerticalAlignment="Center"
+                   Foreground="#CCCCCC" FontSize="10" FontFamily="Courier New, Monospace"/>
+      </Border>
+      <!-- Right hand -->
+      <Border Grid.Column="2" BorderThickness="0,0,1,0" BorderBrush="#2A2A2A" Padding="4,0">
+        <TextBlock x:Name="LabelRH" VerticalAlignment="Center"
+                   Foreground="#CCCCCC" FontSize="10" FontFamily="Courier New, Monospace"/>
+      </Border>
+      <!-- Spell + elapsed -->
+      <Border Grid.Column="3" BorderThickness="0,0,1,0" BorderBrush="#2A2A2A" Padding="4,0">
+        <TextBlock x:Name="LabelSpell" VerticalAlignment="Center"
+                   Foreground="#CCCCCC" FontSize="10" FontFamily="Courier New, Monospace"/>
+      </Border>
+      <!-- SpellTimer countdown bar -->
+      <controls:TimerBarControl Grid.Column="4" x:Name="SpellTimerBar"/>
+    </Grid>
 
     <!-- Dock area: DockManager adds columns and panels programmatically -->
     <Grid x:Name="DockGrid" Margin="6,6,6,0" />
