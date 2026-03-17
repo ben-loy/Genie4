@@ -38,10 +38,15 @@ public partial class MainWindow : Window
     private readonly ScriptList _scriptList    = new ScriptList();
     private readonly ScriptList _scriptListNew = new ScriptList();
     private DispatcherTimer? _gameLoopTimer;
+    // Vitals & status bar fields
+    private int _rtStart        = 0;   // Starting RT value for fill proportion
+    private int _castTotal      = 0;   // casttime - gametime, for SpellTimer fill proportion
+    private int _lastSpellElapsed = -1; // Track last spell elapsed to avoid redundant UI posts
 
     public MainWindow(Game game)
     {
         InitializeComponent();
+        InitializeVitalColors();
         _game = game;
 
         // 1. DockManager FIRST — creates Main panel eagerly and loads XML layout.
@@ -97,6 +102,7 @@ public partial class MainWindow : Window
         WireGameEvents();
         WireCommandEvents();
         StartGameLoopTimer();
+        InitializeTimerColors();
     }
 
     private async Task RunLoad(string label, Action load)
@@ -154,6 +160,33 @@ public partial class MainWindow : Window
 
         // Remove scripts that have finished
         SafeRemoveExitedScripts();
+
+        // RT countdown bar — runs on UI thread (DispatcherTimer.Tick fires on UI thread)
+        int rtRemaining = (int)Math.Max(0, Math.Ceiling(
+            (_game.Globals.RoundTimeEnd - DateTime.Now).TotalSeconds));
+        if (rtRemaining != RtBar.Remaining)
+        {
+            RtBar.Total     = _rtStart;
+            RtBar.Remaining = rtRemaining;
+        }
+
+        // SpellTimer countdown bar + S-column elapsed
+        if (_game.Globals.SpellTimeStart != DateTime.MinValue)
+        {
+            double elapsed   = (DateTime.Now - _game.Globals.SpellTimeStart).TotalSeconds;
+            int castRemain   = _castTotal > 0
+                ? (int)Math.Max(0, Math.Ceiling(_castTotal - elapsed))
+                : 0;
+            int spellElapsed = (int)elapsed;
+
+            if (castRemain != SpellTimerBar.Remaining || spellElapsed != _lastSpellElapsed)
+            {
+                _lastSpellElapsed = spellElapsed;
+                SpellTimerBar.Total     = _castTotal;
+                SpellTimerBar.Remaining = castRemain;
+                UpdateSpellLabel();
+            }
+        }
     }
 
     private bool HasRoundTime() =>
@@ -256,11 +289,47 @@ public partial class MainWindow : Window
 
         // ── Stubs (subscribed now, UI deferred to later sub-projects) ─────────────
         _game.EventDataRecieveEnd  += () => { /* TODO: end-of-update flush */ };
-        _game.EventRoundTime       += (_) => { /* TODO: roundtime countdown bar */ };
-        _game.EventCastTime        += ()  => { /* TODO: cast timer bar */ };
-        _game.EventSpellTime       += ()  => { /* TODO: active spell timer */ };
-        _game.EventClearSpellTime  += ()  => { /* TODO: clear spell timer display */ };
-        _game.EventStatusBarUpdate += ()  => { /* TODO: vitals bars */ };
+        _game.EventRoundTime += (iTime) =>
+        {
+            _rtStart = (int)(iTime + _game.Globals.Config.dRTOffset);
+            _game.Globals.RoundTimeEnd = DateTime.Now.AddMilliseconds(
+                iTime * 1000 + _game.Globals.Config.dRTOffset * 1000);
+        };
+        _game.EventCastTime += () =>
+        {
+            var vl = _game.Globals.VariableList;
+            if (int.TryParse(vl["gametime"]?.ToString(),  out int gameTime) &&
+                int.TryParse(vl["casttime"]?.ToString(),  out int castTime) &&
+                vl["preparedspell"]?.ToString() != "None")
+            {
+                _castTotal = castTime - gameTime;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    SpellTimerBar.Total     = _castTotal;
+                    SpellTimerBar.Remaining = _castTotal;
+                });
+            }
+            else
+            {
+                _castTotal = 0;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    SpellTimerBar.Remaining = 0);
+            }
+        };
+        _game.EventSpellTime += () =>
+            _game.Globals.SpellTimeStart = DateTime.Now;
+        _game.EventClearSpellTime += () =>
+        {
+            _game.Globals.SpellTimeStart = DateTime.MinValue;
+            _castTotal = 0;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                SpellTimerBar.Remaining = 0;
+                UpdateSpellLabel();
+            });
+        };
+        _game.EventStatusBarUpdate += () =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(UpdateStatusLabels);
         _game.EventParseXML        += (_) => { /* TODO: plugin XML forwarding */ };
         _game.EventAddImage        += (filename, window, w, h) => { /* TODO: inline images */ };
     }
@@ -563,8 +632,92 @@ public partial class MainWindow : Window
 
     private void OnVariableChanged(string variable)
     {
+        // Preserve existing title update
         if (variable is "$gamename" or "$connected" or "$charactername")
             UpdateWindowTitle();
+
+        // Vitals and status bar updates (all run on UI thread via Dispatcher)
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateFromVariable(variable));
+    }
+
+    private void UpdateFromVariable(string variable)
+    {
+        var vl = _game.Globals.VariableList;
+        switch (variable)
+        {
+            case "$health":
+                if (int.TryParse(vl["health"]?.ToString(), out int hp))
+                    VitalsHealth.Value = hp;
+                VitalsHealth.BarText = vl["healthBarText"]?.ToString() ?? "Health";
+                break;
+            case "$mana":
+                if (int.TryParse(vl["mana"]?.ToString(), out int mp))
+                    VitalsMana.Value = mp;
+                VitalsMana.BarText = vl["manaBarText"]?.ToString() ?? "Mana";
+                break;
+            case "$spirit":
+                if (int.TryParse(vl["spirit"]?.ToString(), out int sp))
+                    VitalsSpirit.Value = sp;
+                VitalsSpirit.BarText = vl["spiritBarText"]?.ToString() ?? "Spirit";
+                break;
+            case "$stamina":
+                if (int.TryParse(vl["stamina"]?.ToString(), out int st))
+                    VitalsFatigue.Value = st;
+                VitalsFatigue.BarText = vl["staminaBarText"]?.ToString() ?? "Fatigue";
+                break;
+            case "$concentration":
+                if (int.TryParse(vl["concentration"]?.ToString(), out int cn))
+                    VitalsConc.Value = cn;
+                VitalsConc.BarText = vl["concentrationBarText"]?.ToString() ?? "Concentration";
+                break;
+            case "$lefthand":
+                LabelLH.Text = "L  " + (vl["lefthand"]?.ToString() ?? "");
+                break;
+            case "$righthand":
+                LabelRH.Text = "R  " + (vl["righthand"]?.ToString() ?? "");
+                break;
+            case "$preparedspell":
+                UpdateSpellLabel();
+                break;
+            case "$connected":
+                bool isConn = vl["connected"]?.ToString() == "1";
+                VitalsHealth.IsConnected  = isConn;
+                VitalsMana.IsConnected    = isConn;
+                VitalsConc.IsConnected    = isConn;
+                VitalsFatigue.IsConnected = isConn;
+                VitalsSpirit.IsConnected  = isConn;
+                RtBar.IsConnected         = isConn;
+                SpellTimerBar.IsConnected = isConn;
+                break;
+        }
+    }
+
+    private void UpdateSpellLabel()
+    {
+        var vl    = _game.Globals.VariableList;
+        var spell = vl["preparedspell"]?.ToString() ?? "";
+        var start = _game.Globals.SpellTimeStart;
+        bool showTimer = _game.Globals.Config.bShowSpellTimer
+                         && start != DateTime.MinValue
+                         && spell != "None"
+                         && spell != "";
+        if (showTimer)
+        {
+            int elapsed = (int)(DateTime.Now - start).TotalSeconds;
+            LabelSpell.Text = $"({elapsed}) {spell}";
+        }
+        else
+        {
+            LabelSpell.Text = spell;
+        }
+    }
+
+    private void UpdateStatusLabels()
+    {
+        var vl = _game.Globals.VariableList;
+        LabelLH.Text = "L  " + (vl["lefthand"]?.ToString()  ?? "");
+        LabelRH.Text = "R  " + (vl["righthand"]?.ToString() ?? "");
+        UpdateSpellLabel();
     }
 
     private void UpdateWindowTitle()
@@ -686,4 +839,34 @@ public partial class MainWindow : Window
     private void MenuCommunity_DRService(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuCommunity_LichDiscord(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
     private void MenuCommunity_IsharonSettings(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { /* TODO */ }
+
+    private static Avalonia.Media.IBrush AvaloniaColor(System.Drawing.Color c) =>
+        new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(c.R, c.G, c.B));
+
+    private void InitializeVitalColors()
+    {
+        // Hardcoded WinForms-matching colors — set from code-behind because FillColor/EmptyColor
+        // are plain CLR IBrush properties (not AvaloniaProperty) and cannot be set from AXAML.
+        VitalsHealth.FillColor   = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x80, 0x00, 0x00));
+        VitalsHealth.EmptyColor  = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x40, 0x00, 0x00));
+        VitalsMana.FillColor     = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x00, 0x80));
+        VitalsMana.EmptyColor    = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x00, 0x40));
+        VitalsConc.FillColor     = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x80, 0x80));
+        VitalsConc.EmptyColor    = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x40, 0x40));
+        VitalsFatigue.FillColor  = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x80, 0x00));
+        VitalsFatigue.EmptyColor = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x00, 0x40, 0x00));
+        VitalsSpirit.FillColor   = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x80, 0x00, 0x80));
+        VitalsSpirit.EmptyColor  = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x40, 0x00, 0x40));
+    }
+
+    private void InitializeTimerColors()
+    {
+        // Presets indexer returns typed Preset — no cast needed.
+        // Use ContainsKey (not Contains — SortedList.Contains checks values, not keys).
+        if (_game.Globals.PresetList.ContainsKey("roundtime"))
+            RtBar.FillColor = AvaloniaColor(_game.Globals.PresetList["roundtime"].FgColor);
+
+        if (_game.Globals.PresetList.ContainsKey("castbar"))
+            SpellTimerBar.FillColor = AvaloniaColor(_game.Globals.PresetList["castbar"].FgColor);
+    }
 }
