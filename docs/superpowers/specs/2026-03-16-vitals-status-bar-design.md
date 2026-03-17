@@ -18,7 +18,7 @@ Add three rows below the game output area (above the existing `DockGrid`) to mat
 
 ## Layout Structure
 
-`MainWindow.axaml` uses a `DockPanel`. Bottom-docked children stack upward in declaration order. The new declaration order for bottom-docked items:
+`MainWindow.axaml` uses a `DockPanel`. Bottom-docked children stack upward in declaration order. The existing `CommandBox` declaration (`DockPanel.Dock="Bottom"`) must be **removed from its current position** in the file and re-declared between the two new rows as shown below. The new declaration order for bottom-docked items:
 
 ```xml
 <!-- 1. Vitals row — very bottom (declared first) -->
@@ -81,7 +81,13 @@ A reusable UserControl for a single vital stat bar.
 | Fatigue/Stamina | `Green` (#008000) | `#004000` |
 | Spirit | `Purple` (#800080) | `#400040` |
 
-**Grayscale:** When `IsConnected = false`, compute grayscale via `(R*0.299 + G*0.587 + B*0.114)` for both fill and empty colors. This matches `Genie.ColorCode.ColorToGrayscale` in WinForms.
+**Grayscale:** When `IsConnected = false`, convert both fill and empty colors to grayscale. `Genie.ColorCode.ColorToGrayscale` is accessible from the Desktop project (included in `.csproj`), but it operates on `System.Drawing.Color`, not Avalonia types. The controls store colors as `IBrush` (`SolidColorBrush`). The round-trip is:
+1. Extract `Avalonia.Media.Color` from the `SolidColorBrush`
+2. Construct a `System.Drawing.Color` from its R/G/B bytes
+3. Call `ColorCode.ColorToGrayscale(drawingColor)` → returns `System.Drawing.Color`
+4. Construct a new `SolidColorBrush(Avalonia.Media.Color.FromRgb(g.R, g.G, g.B))`
+
+Alternatively, compute inline: `byte lum = (byte)(r * 0.299 + g * 0.587 + b * 0.114)` and use `Color.FromRgb(lum, lum, lum)` to avoid the type round-trip.
 
 ---
 
@@ -109,6 +115,13 @@ A reusable UserControl for RT and SpellTimer countdown bars. Same rendering patt
 |---|---|---|
 | RT bar | `MediumBlue` | `PresetList["roundtime"].FgColor` |
 | SpellTimer bar | `Magenta` | `PresetList["castbar"].FgColor` |
+
+`PresetList[key].FgColor` returns `System.Drawing.Color`. Convert to an Avalonia `SolidColorBrush` before assigning to `FillColor`:
+```csharp
+var c = _game.Globals.PresetList["roundtime"].FgColor;
+_rtBar.FillColor = new SolidColorBrush(Avalonia.Media.Color.FromRgb(c.R, c.G, c.B));
+```
+This conversion is done once during `InitializeAsync()` after presets are loaded.
 
 Both use black backgrounds. Fill shrinks left-to-right as `Remaining` decreases (fill width = `Remaining / Total * totalWidth`).
 
@@ -176,23 +189,27 @@ private int _castTotal; // casttime - spellstarttime
 
 ### Existing Stub Expansions
 
-**`EventVariableChanged(string sVariable)`** — add cases:
+**`EventVariableChanged(string sVariable)`** — add cases. All values are read from `_game.Globals.VariableList[key]?.ToString() ?? ""`:
 
 | Variable | Action |
 |---|---|
-| `$health` | `_vitalsHealth.Value = int.Parse(...)`, `_vitalsHealth.BarText = healthBarText` |
-| `$mana` | `_vitalsMana.Value`, `BarText` |
-| `$spirit` | `_vitalsSpirit.Value`, `BarText` |
-| `$stamina` | `_vitalsFatigue.Value`, `BarText` |
-| `$concentration` | `_vitalsConc.Value`, `BarText` |
-| `$lefthand` | `_labelLH.Text = "L  " + value` |
-| `$righthand` | `_labelRH.Text = "R  " + value` |
-| `$preparedspell` | stored for spell label; refreshed via UpdateSpellLabel() |
-| `$connected` | set `IsConnected` on all 5 vitals + both timer bars |
+| `$health` | `_vitalsHealth.Value = int.Parse(VariableList["health"])`; `_vitalsHealth.BarText = VariableList["healthBarText"]` |
+| `$mana` | `_vitalsMana.Value = int.Parse(VariableList["mana"])`; `BarText = VariableList["manaBarText"]` |
+| `$spirit` | `_vitalsSpirit.Value = int.Parse(VariableList["spirit"])`; `BarText = VariableList["spiritBarText"]` |
+| `$stamina` | `_vitalsFatigue.Value = int.Parse(VariableList["stamina"])`; `BarText = VariableList["staminaBarText"]` |
+| `$concentration` | `_vitalsConc.Value = int.Parse(VariableList["concentration"])`; `BarText = VariableList["concentrationBarText"]` |
+| `$lefthand` | `_labelLH.Text = "L  " + VariableList["lefthand"]` |
+| `$righthand` | `_labelRH.Text = "R  " + VariableList["righthand"]` |
+| `$preparedspell` | stored for spell label; refreshed via `UpdateSpellLabel()` |
+| `$connected` | `bool isConn = VariableList["connected"]?.ToString() == "1";` — set `IsConnected = isConn` on all 5 vitals + both timer bars |
 
 **`EventStatusBarUpdate()`** — calls `UpdateStatusLabels()` which refreshes LH, RH, Spell.
 
-**`EventRoundTime(int iTime)`** — set `_rtStart = (int)(iTime + _game.Globals.Config.dRTOffset)`. `RoundTimeEnd` is already set in `Globals` by `Game.cs`. RT bar driven by `RoundTimeEnd` each tick.
+**`EventRoundTime(int iTime)`** — two actions required:
+1. Set `_rtStart = (int)(iTime + _game.Globals.Config.dRTOffset)` for the fill proportion denominator.
+2. Set `_game.Globals.RoundTimeEnd = DateTime.Now.AddMilliseconds(iTime * 1000 + _game.Globals.Config.dRTOffset * 1000)` — this is **not** set by `Game.cs`; `FormMain.cs` sets it in its own `SetRoundTime` handler (line 6544). The Avalonia handler must do the same.
+
+RT bar is then driven by `RoundTimeEnd` each tick.
 
 **`EventCastTime()`** — compute `_castTotal = casttime - spellstarttime` from `Globals.VariableList`. Reset `_spellTimerBar.Total = _castTotal`, `_spellTimerBar.Remaining = _castTotal`.
 
@@ -245,7 +262,7 @@ _labelSpell.Text = (Config.bShowSpellTimer && elapsed > 0 && spell != "None")
 
 ## Disconnected State
 
-When `$connected` variable is false, all vitals and timer bars call `IsConnected = false`, which renders grayscale. This matches WinForms where `ComponentBars.IsConnected` and `ComponentRoundtime.IsConnected` gray out the controls.
+When `$connected` changes, read `_game.Globals.VariableList["connected"]?.ToString() == "1"` to get a bool. When false, all vitals and timer bars have `IsConnected = false` set, which renders them in grayscale. This matches WinForms where `ComponentBars.IsConnected` and `ComponentRoundtime.IsConnected` gray out the controls. Note: `"connected"` is stored as `"0"` or `"1"` in `VariableList`, not as a boolean.
 
 ---
 
