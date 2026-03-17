@@ -1,5 +1,7 @@
 ﻿using System;
+#if !DESKTOP
 using System.Windows.Forms;
+#endif
 using System.IO;
 
 namespace GenieClient
@@ -22,7 +24,11 @@ namespace GenieClient
         public static void SetUserDataDirectory()
         {
             string dir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+#if !DESKTOP
             dir = System.IO.Path.Combine(dir, Application.ProductName);
+#else
+            dir = System.IO.Path.Combine(dir, System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "Genie");
+#endif
             if (!System.IO.Directory.Exists(dir))
             {
                 System.IO.Directory.CreateDirectory(dir);

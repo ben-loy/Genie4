@@ -5,12 +5,14 @@ namespace GenieClient
 {
     public class Win32Utility
     {
+#if WINDOWS
         [DllImport("user32")]
         private static extern int GetTopWindow(int hwnd);
         [DllImport("user32", EntryPoint = "GetWindow")]
         private static extern int GetNextWindow(int hwnd, int wFlag);
         [DllImport("user32.dll", EntryPoint = "SendMessageA")]
         private static extern int SendMessageA(IntPtr hwnd, int wMsg, int wParam, int lParam);
+#endif
 
 
 
@@ -32,13 +34,12 @@ namespace GenieClient
             public int nTrackPos;
         }
 
+#if WINDOWS
         [DllImport("user32.dll")]
         private static extern bool GetScrollInfo(IntPtr hWnd, int nBar, SCROLLINFO lpScrollInfo);
-
-
-
         [DllImport("user32.dll")]
         private static extern bool SetScrollInfo(IntPtr hWnd, int nBar, SCROLLINFO lpScrollInfo, bool fRedraw);
+#endif
 
 
 
@@ -70,18 +71,26 @@ namespace GenieClient
 
         public int GetScrollPos(IntPtr hwnd)
         {
+#if WINDOWS
             sc.fMask = SIF_ALL;
             sc.cbSize = Marshal.SizeOf(sc);
             GetScrollInfo(hwnd, SBS_VERT, sc);
             return sc.nPos;
+#else
+            return 0;
+#endif
         }
 
         public bool SetScrollPos(IntPtr hwnd, int pos)
         {
+#if WINDOWS
             sc.fMask = SIF_ALL;
             sc.nPos = pos;
             sc.cbSize = Marshal.SizeOf(sc);
             return SetScrollInfo(hwnd, SBS_VERT, sc, true);
+#else
+            return false;
+#endif
         }
 
         public static void BeginUpdate(IntPtr hwnd)
@@ -110,10 +119,15 @@ namespace GenieClient
 
         // Skinning
 
+#if WINDOWS
         [DllImport("user32.dll")]
         public static extern bool ReleaseCapture();
         [DllImport("user32.dll")]
         public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+#else
+        public static bool ReleaseCapture() => false;
+        public static IntPtr SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam) => IntPtr.Zero;
+#endif
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINTAPI

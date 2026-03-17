@@ -91,6 +91,8 @@ namespace GenieClient.Genie
 
         public delegate void EventStreamWindowEventHandler(object sID, object sTitle, object sIfClosed);
 
+        public event Action? EventDisconnected;
+
         private Connection _m_oSocket;
 
         private Connection m_oSocket
@@ -158,6 +160,8 @@ namespace GenieClient.Genie
                 }
             }
         }
+
+        public Globals Globals => m_oGlobals;
 
         private bool m_bShowRawOutput = false;
         private string m_sEncryptionKey = string.Empty;
@@ -387,6 +391,19 @@ namespace GenieClient.Genie
             }
         }
 
+        /// <summary>
+        /// The server-assigned game name (e.g. "DragonRealms"), set from XML during login.
+        /// Equivalent to VariableList["gamename"]. Empty string until the server sends it.
+        /// </summary>
+        public string GameName => m_sGameName;
+
+        /// <summary>
+        /// The in-game character name from VariableList["charactername"].
+        /// Set at connect time and may be updated by the server during the session.
+        /// </summary>
+        public string CharacterName =>
+            m_oGlobals?.VariableList["charactername"]?.ToString() ?? string.Empty;
+
         public void Connect(string sGenieKey, string sAccountName, string sPassword, string sCharacter, string sGame)
         {
             m_sAccountName = sAccountName;
@@ -597,6 +614,7 @@ namespace GenieClient.Genie
                                 if (buffer.EndsWith("</preset>"))
                                 {
                                     XmlDocument presetXML = new XmlDocument();
+                                    presetXML.XmlResolver = null;
                                     presetXML.LoadXml(buffer);
 
                                     string presetLabel = GetAttributeData(presetXML.FirstChild, "id").ToLower();
@@ -876,6 +894,7 @@ namespace GenieClient.Genie
             }
 
             var oDocument = new XmlDocument();
+            oDocument.XmlResolver = null;
             try
             {
                 oDocument.LoadXml("<data>" + sXML + "</data>");
@@ -1195,7 +1214,7 @@ namespace GenieClient.Genie
                         }
                     case "E": //Indicates an Error Message
                         {
-                            string[] errorStrings = sText.Split("\t");
+                            string[] errorStrings = sText.Split('\t');
                             for(int i = 1;i < errorStrings.Length;i++)
                             {
                                 PrintError(errorStrings[i]);
@@ -3169,7 +3188,12 @@ namespace GenieClient.Genie
 
         private void HandleGenieException(string section, string message, string description = null)
         {
-            GenieError.Error(section, message, description);
+            // Do NOT call GenieError.Error here — we are already inside an EventGenieError handler
+            // and doing so would cause infinite recursion.
+            // Write to stderr so errors are visible without re-entering the error pipeline.
+            Console.Error.WriteLine($"[GenieError] {section}: {message}");
+            if (!string.IsNullOrEmpty(description))
+                Console.Error.WriteLine(description);
         }
 
         private void GameSocket_EventConnected()
@@ -3205,6 +3229,7 @@ namespace GenieClient.Genie
 
         private void GameSocket_EventDisconnected()
         {
+            EventDisconnected?.Invoke();
             if (m_oConnectState == ConnectStates.ConnectedGame)
             {
                 string argkey = "connected";
@@ -3249,6 +3274,7 @@ namespace GenieClient.Genie
                         }
                     }
                 }
+#if WINDOWS
                 else if(oPlugin is GeniePlugin.Plugins.IPlugin)
                 {
                     if ((oPlugin as GeniePlugin.Plugins.IPlugin).Enabled)
@@ -3266,6 +3292,7 @@ namespace GenieClient.Genie
                         }
                     }
                 }
+#endif
             }
 
             return sText;
@@ -3328,6 +3355,7 @@ namespace GenieClient.Genie
 
         private void GameSocket_EventConnectionLost()
         {
+            EventDisconnected?.Invoke();
             if (m_oGlobals.Config.bReconnect == true & m_bManualDisconnect == false)
             {
                 if (m_iConnectAttempts == 0) // Attempt to connect right away

@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="GenieClient.Desktop.GameOutputPanel">
+  <Border BorderBrush="Gray" BorderThickness="1">
+  <DockPanel>
+
+    <!-- Title bar -->
+    <DockPanel DockPanel.Dock="Top">
+      <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="×" Width="24" />
+      <Button x:Name="DockButton"  DockPanel.Dock="Right" Content="Dock" />
+      <Button x:Name="FloatButton" DockPanel.Dock="Right" Content="Float" />
+      <TextBlock x:Name="TitleLabel" VerticalAlignment="Center" Margin="4,0" />
+    </DockPanel>
+
+    <!-- Output area -->
+    <ScrollViewer x:Name="OutputScrollViewer">
+      <SelectableTextBlock x:Name="OutputText"
+                           FontFamily="Courier New,Consolas,monospace"
+                           FontSize="13"
+                           TextWrapping="Wrap" />
+    </ScrollViewer>
+
+  </DockPanel>
+  </Border>
+</UserControl>
