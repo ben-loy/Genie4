@@ -116,12 +116,13 @@ A reusable UserControl for RT and SpellTimer countdown bars. Same rendering patt
 | RT bar | `MediumBlue` | `PresetList["roundtime"].FgColor` |
 | SpellTimer bar | `Magenta` | `PresetList["castbar"].FgColor` |
 
-`PresetList[key].FgColor` returns `System.Drawing.Color`. Convert to an Avalonia `SolidColorBrush` before assigning to `FillColor`:
+`PresetList` extends `SortedList` whose indexer returns `object`, so a cast is required. `FgColor` is `System.Drawing.Color`; convert to Avalonia `SolidColorBrush`:
 ```csharp
-var c = _game.Globals.PresetList["roundtime"].FgColor;
+var preset = (Globals.Presets.Preset)_game.Globals.PresetList["roundtime"];
+var c = preset.FgColor;
 _rtBar.FillColor = new SolidColorBrush(Avalonia.Media.Color.FromRgb(c.R, c.G, c.B));
 ```
-This conversion is done once during `InitializeAsync()` after presets are loaded.
+This conversion is done once during `InitializeAsync()` after presets are loaded. Repeat for `_spellTimerBar.FillColor` using `PresetList["castbar"]`.
 
 Both use black backgrounds. Fill shrinks left-to-right as `Remaining` decreases (fill width = `Remaining / Total * totalWidth`).
 
@@ -189,7 +190,7 @@ private int _castTotal; // casttime - spellstarttime
 
 ### Existing Stub Expansions
 
-**`EventVariableChanged(string sVariable)`** — add cases. All values are read from `_game.Globals.VariableList[key]?.ToString() ?? ""`:
+**`EventVariableChanged(string sVariable)`** — the existing `OnVariableChanged` method in `MainWindow.axaml.cs` handles `$gamename`, `$connected`, and `$charactername` to update the window title. This body **must be preserved**. The new vitals/status cases are appended inside the same method after the title-update logic. All values are read from `_game.Globals.VariableList[key]?.ToString() ?? ""`:
 
 | Variable | Action |
 |---|---|
@@ -211,7 +212,23 @@ private int _castTotal; // casttime - spellstarttime
 
 RT bar is then driven by `RoundTimeEnd` each tick.
 
-**`EventCastTime()`** — compute `_castTotal = casttime - spellstarttime` from `Globals.VariableList`. Reset `_spellTimerBar.Total = _castTotal`, `_spellTimerBar.Remaining = _castTotal`.
+**`EventCastTime()`** — fires after `VariableList["gametime"]` and `VariableList["casttime"]` are already updated by `Game.cs`. Matches `FormMain.SetCastTime()` (line 6304):
+```csharp
+if (int.TryParse(_game.Globals.VariableList["gametime"]?.ToString(), out int gameTime) &&
+    int.TryParse(_game.Globals.VariableList["casttime"]?.ToString(), out int castTime) &&
+    _game.Globals.VariableList["preparedspell"]?.ToString() != "None")
+{
+    _castTotal = castTime - gameTime;
+    _spellTimerBar.Total = _castTotal;
+    _spellTimerBar.Remaining = _castTotal;
+}
+else
+{
+    _castTotal = 0;
+    _spellTimerBar.Remaining = 0;
+}
+```
+Note: uses `casttime - gametime`, **not** `casttime - spellstarttime`. `spellstarttime` is a Unix epoch timestamp and would produce a nonsensical result.
 
 ### New Events to Wire
 
